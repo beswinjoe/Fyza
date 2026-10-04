@@ -1,35 +1,37 @@
 // Demo data generator — builds realistic history relative to today.
 import { ymd, today, uid, addDays } from './format';
+import { AppState } from '../types/app';
+import { TransactionType, Account, Transaction, RecurringItem, Card, Loan } from '../types/finance';
 
-function rng(seed) {
+function rng(seed: number) {
   return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
 }
 
-export const EMPTY = {
+export const EMPTY: AppState = {
   onboarded: false, user: { name: '' }, profiles: [], world: 'personal', theme: 'dark',
   accounts: [], cards: [], loans: [], transactions: [], recurring: [], goals: [], trips: [], invoices: [], scenarios: [], aiHistory: [],
   categories: ['Food', 'Groceries', 'Transport', 'Rent', 'Bills', 'Subscriptions', 'Shopping', 'Entertainment', 'Health', 'Education', 'Travel', 'EMI', 'Other'],
 };
 
-export function buildSeed({ name, profiles }) {
-  const s = structuredClone(EMPTY);
-  s.user.name = name; s.profiles = profiles; s.onboarded = true;
+export function buildSeed({ name, profiles }: { name: string; profiles: string[] }): AppState {
+  const s = structuredClone(EMPTY) as AppState;
+  s.user.name = name; s.profiles = profiles as any[]; s.onboarded = true;
   const r = rng(42), now = today();
-  const tx = (o) => s.transactions.push({ id: uid(), tags: [], world: 'personal', ...o });
+  
+  const tx = (o: Partial<Transaction> & { type: TransactionType, amount: number }) => s.transactions.push({ id: uid(), tags: [], world: 'personal', date: ymd(now), ...o } as Transaction);
   const student = profiles.includes('student') && !profiles.includes('personal');
   const biz = profiles.includes('business') || profiles.includes('freelancer');
 
-  const months = [3, 2, 1, 0];
-  const forDays = (fn) => { for (let i = 120; i >= 0; i--) fn(addDays(now, -i), i); };
+  const forDays = (fn: (d: Date, i: number) => void) => { for (let i = 120; i >= 0; i--) fn(addDays(now, -i), i); };
 
   if (student) {
-    const acc = { id: uid(), name: 'SBI Student', institution: 'SBI', type: 'bank', opening: 2400, currency: 'INR', world: 'personal' };
-    const cash = { id: uid(), name: 'Cash', type: 'cash', opening: 600, currency: 'INR', world: 'personal' };
-    const upi = { id: uid(), name: 'Paytm Wallet', type: 'wallet', opening: 0, currency: 'INR', world: 'personal' };
+    const acc: Account = { id: uid(), name: 'SBI Student', institution: 'SBI', type: 'bank', opening: 2400, currency: 'INR', world: 'personal' };
+    const cash: Account = { id: uid(), name: 'Cash', type: 'cash', opening: 600, currency: 'INR', world: 'personal' };
+    const upi: Account = { id: uid(), name: 'Paytm Wallet', type: 'wallet', opening: 0, currency: 'INR', world: 'personal' };
     s.accounts.push(acc, cash, upi);
-    const pm = { id: uid(), name: 'Pocket money', type: 'income', amount: 8000, day: 1, category: 'Pocket money', accountId: acc.id, world: 'personal' };
-    const spot = { id: uid(), name: 'Spotify Student', type: 'expense', amount: 59, day: 14, category: 'Subscriptions', accountId: acc.id, world: 'personal' };
-    const ph = { id: uid(), name: 'Mobile recharge', type: 'expense', amount: 299, day: 20, category: 'Bills', accountId: acc.id, world: 'personal' };
+    const pm: RecurringItem = { id: uid(), name: 'Pocket money', type: 'income', amount: 8000, day: 1, category: 'Pocket money', accountId: acc.id, world: 'personal' };
+    const spot: RecurringItem = { id: uid(), name: 'Spotify Student', type: 'expense', amount: 59, day: 14, category: 'Subscriptions', accountId: acc.id, world: 'personal' };
+    const ph: RecurringItem = { id: uid(), name: 'Mobile recharge', type: 'expense', amount: 299, day: 20, category: 'Bills', accountId: acc.id, world: 'personal' };
     s.recurring.push(pm, spot, ph);
     forDays((d) => {
       const day = d.getDate(), date = ymd(d);
@@ -46,12 +48,12 @@ export function buildSeed({ name, profiles }) {
     );
     s.trips.push({ id: uid(), destination: 'Goa', start: ymd(new Date(now.getFullYear(), 11, 20)), end: ymd(new Date(now.getFullYear(), 11, 24)), budget: { travel: 3200, stay: 3500, food: 2400, activities: 1500, shopping: 800, other: 600 }, world: 'personal', note: 'College gang trip' });
   } else {
-    const hdfc = { id: uid(), name: 'HDFC Salary', institution: 'HDFC Bank', type: 'bank', opening: 38000, currency: 'INR', world: 'personal' };
-    const sav = { id: uid(), name: 'High-yield Savings', institution: 'IDFC First', type: 'savings', opening: 185000, currency: 'INR', world: 'personal' };
-    const cash = { id: uid(), name: 'Cash', type: 'cash', opening: 3500, currency: 'INR', world: 'personal' };
+    const hdfc: Account = { id: uid(), name: 'HDFC Salary', institution: 'HDFC Bank', type: 'bank', opening: 38000, currency: 'INR', world: 'personal' };
+    const sav: Account = { id: uid(), name: 'High-yield Savings', institution: 'IDFC First', type: 'savings', opening: 185000, currency: 'INR', world: 'personal' };
+    const cash: Account = { id: uid(), name: 'Cash', type: 'cash', opening: 3500, currency: 'INR', world: 'personal' };
     s.accounts.push(hdfc, sav, cash);
-    const cc = { id: uid(), name: 'HDFC Regalia', kind: 'credit', network: 'Visa', last4: '4821', limit: 250000, statementDay: 15, dueDay: 3, accountId: hdfc.id };
-    const dc = { id: uid(), name: 'HDFC Debit', kind: 'debit', network: 'RuPay', last4: '1190', accountId: hdfc.id };
+    const cc: Card = { id: uid(), name: 'HDFC Regalia', kind: 'credit', network: 'Visa', last4: '4821', limit: 250000, statementDay: 15, dueDay: 3, accountId: hdfc.id };
+    const dc: Card = { id: uid(), name: 'HDFC Debit', kind: 'debit', network: 'RuPay', last4: '1190', accountId: hdfc.id };
     s.cards.push(cc, dc);
     s.recurring.push(
       { id: uid(), name: 'Salary', type: 'income', amount: 75000, day: 1, category: 'Salary', accountId: hdfc.id, world: 'personal' },
@@ -62,7 +64,7 @@ export function buildSeed({ name, profiles }) {
       { id: uid(), name: 'SIP — Nifty 50', type: 'expense', amount: 5000, day: 10, category: 'Investments', accountId: hdfc.id, world: 'personal' },
     );
     const loanStart = new Date(now.getFullYear() - 1, now.getMonth() - 2, 7);
-    const loan = { id: uid(), name: 'Car loan', type: 'vehicle', principal: 500000, rate: 9, tenureMonths: 36, startDate: ymd(loanStart), lender: 'ICICI Bank', world: 'personal' };
+    const loan: Loan = { id: uid(), name: 'Car loan', type: 'vehicle', principal: 500000, rate: 9, tenureMonths: 36, startDate: ymd(loanStart), lender: 'ICICI Bank', world: 'personal' };
     s.loans.push(loan);
     forDays((d) => {
       const day = d.getDate(), date = ymd(d);
@@ -85,7 +87,7 @@ export function buildSeed({ name, profiles }) {
   }
 
   if (biz) {
-    const bank = { id: uid(), name: 'Current Account', institution: 'Kotak', type: 'bank', opening: 520000, currency: 'INR', world: 'business' };
+    const bank: Account = { id: uid(), name: 'Current Account', institution: 'Kotak', type: 'bank', opening: 520000, currency: 'INR', world: 'business' };
     s.accounts.push(bank);
     s.recurring.push(
       { id: uid(), name: 'Payroll', type: 'expense', amount: 140000, day: 30, category: 'Payroll', accountId: bank.id, world: 'business' },
@@ -97,13 +99,13 @@ export function buildSeed({ name, profiles }) {
     const clients = ['Northwind', 'Lumen Labs', 'Kite Studio', 'Orbit Retail', 'Fable & Co'];
     forDays((d, i) => {
       const day = d.getDate(), date = ymd(d);
-      for (const rc of s.recurring.filter((x) => x.world === 'business')) if (rc.day === Math.min(day, 30) && (rc.day !== 30 || day === 30)) tx({ world: 'business', type: rc.type, amount: rc.amount, category: rc.category, date, accountId: bank.id, note: rc.name, recurringId: rc.id });
+      for (const rc of s.recurring.filter((x) => x.world === 'business')) if (rc.day === Math.min(day, 30) && (rc.day !== 30 || day === 30)) tx({ world: 'business', type: rc.type as TransactionType, amount: rc.amount, category: rc.category, date, accountId: bank.id, note: rc.name, recurringId: rc.id });
       if (r() < 0.12) tx({ world: 'business', type: 'income', amount: Math.round((40 + r() * 120) * (i < 35 ? 0.75 : 1)) * 500, category: 'Revenue', date, accountId: bank.id, note: `Invoice — ${clients[Math.floor(r() * 5)]}` });
       if (r() < 0.1) tx({ world: 'business', type: 'expense', amount: Math.round(4000 + r() * 16000), category: 'Marketing', date, accountId: bank.id, note: ['Meta ads', 'Google ads', 'LinkedIn campaign'][Math.floor(r() * 3)] });
       if (r() < 0.05) tx({ world: 'business', type: 'expense', amount: Math.round(2000 + r() * 9000), category: 'Operations', date, accountId: bank.id, note: ['Courier', 'Office supplies', 'Travel'][Math.floor(r() * 3)] });
       if (day === 28) {
         const p = s.accounts.find((a) => a.world === 'personal');
-        tx({ world: 'business', type: 'transfer', amount: 40000, fromAccountId: bank.id, toAccountId: p.id, fromWorld: 'business', toWorld: 'personal', date, note: 'Owner draw → Personal' });
+        if (p) tx({ world: 'business', type: 'transfer', amount: 40000, fromAccountId: bank.id, toAccountId: p.id, fromWorld: 'business', toWorld: 'personal', date, note: 'Owner draw → Personal' });
       }
     });
     s.invoices.push(
@@ -115,6 +117,5 @@ export function buildSeed({ name, profiles }) {
     s.loans.push({ id: uid(), name: 'Working capital', type: 'business', principal: 800000, rate: 11.5, tenureMonths: 48, startDate: ymd(new Date(now.getFullYear() - 1, now.getMonth(), 12)), lender: 'Kotak', world: 'business' });
     s.categories.push('Revenue', 'Payroll', 'Software', 'Marketing', 'Operations', 'Taxes', 'Inventory');
   }
-  void months;
   return s;
 }

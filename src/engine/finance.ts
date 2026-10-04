@@ -1,11 +1,13 @@
 // Financial engine — pure functions over the state model. No UI code here.
 import { today, mkey, parseDate, addMonths, daysInMonth, daysBetween, monthsBetween, monthLabel, ymd, addDays } from './format';
+import { AppState } from '../types/app';
+import { World, Account, Card, Loan, Transaction, Trip, Goal, ScenarioDef } from '../types/finance';
 
-export const W = (x) => x.world || 'personal';
-export const inWorld = (world) => (x) => W(x) === world;
+export const W = (x: { world?: World }): World => x.world || 'personal';
+export const inWorld = (world: World) => (x: { world?: World }) => W(x) === world;
 
 /* ---------- Loans ---------- */
-export function emi(P, rate, n) {
+export function emi(P: number, rate: number, n: number): number {
   const r = rate / 1200;
   if (!n) return 0;
   if (!r) return P / n;
@@ -13,7 +15,7 @@ export function emi(P, rate, n) {
   return (P * r * f) / (f - 1);
 }
 
-export function loanStats(loan, now = today()) {
+export function loanStats(loan: Loan, now = today()) {
   const P = +loan.principal, n = +loan.tenureMonths, r = +loan.rate / 1200;
   const e = emi(P, +loan.rate, n);
   const start = parseDate(loan.startDate);
@@ -39,9 +41,9 @@ export function loanStats(loan, now = today()) {
 }
 
 /* ---------- Accounts & cards ---------- */
-export const isCredit = (state, cardId) => state.cards.find((c) => c.id === cardId)?.kind === 'credit';
+export const isCredit = (state: AppState, cardId: string) => state.cards.find((c) => c.id === cardId)?.kind === 'credit';
 
-export function accountBalance(state, acc) {
+export function accountBalance(state: AppState, acc: Account) {
   let b = +acc.opening || 0;
   for (const t of state.transactions) {
     if (t.type === 'transfer') {
@@ -54,36 +56,36 @@ export function accountBalance(state, acc) {
   return b;
 }
 
-export const available = (state, world) =>
+export const available = (state: AppState, world: World) =>
   state.accounts.filter(inWorld(world)).reduce((s, a) => s + accountBalance(state, a), 0);
 
-export function cardStats(state, card, now = today()) {
-  const sd = +card.statementDay || 1;
+export function cardStats(state: AppState, card: Card, now = today()) {
+  const sd = +(card.statementDay || 1);
   let cycleStart = new Date(now.getFullYear(), now.getMonth(), sd + 1);
   if (cycleStart > now) cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, sd + 1);
   const txns = state.transactions.filter((t) => t.cardId === card.id);
   const cycle = txns.filter((t) => parseDate(t.date) >= cycleStart);
   const spent = cycle.reduce((s, t) => s + t.amount, 0);
   const statement = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, sd);
-  const due = new Date(statement.getFullYear(), statement.getMonth() + (card.dueDay < sd ? 1 : 0), +card.dueDay || sd + 18);
+  const due = new Date(statement.getFullYear(), statement.getMonth() + (+(card.dueDay || 0) < sd ? 1 : 0), +(card.dueDay || 0) || sd + 18);
   return {
-    spent, txns, limit: +card.limit || 0, availableLimit: Math.max(0, (+card.limit || 0) - spent),
+    spent, txns, limit: +(card.limit || 0) || 0, availableLimit: Math.max(0, (+(card.limit || 0) || 0) - spent),
     utilization: card.limit ? spent / card.limit : 0, statementDate: ymd(statement), dueDate: ymd(due),
   };
 }
 
 /* ---------- Monthly summaries ---------- */
-export function monthTx(state, key, world) {
+export function monthTx(state: AppState, key: string, world: World): Transaction[] {
   return state.transactions.filter((t) => (W(t) === world || (t.type === 'transfer' && (t.fromWorld === world || t.toWorld === world))) && t.date.startsWith(key));
 }
 
-export function monthSummary(state, key, world, uptoDay = 31) {
+export function monthSummary(state: AppState, key: string, world: World, uptoDay = 31) {
   const tx = monthTx(state, key, world).filter((t) => +t.date.slice(8, 10) <= uptoDay);
   let income = 0, expense = 0, transferIn = 0, transferOut = 0;
-  const byCategory = {};
+  const byCategory: Record<string, number> = {};
   for (const t of tx) {
     if (t.type === 'income') income += t.amount;
-    else if (t.type === 'expense') { expense += t.amount; byCategory[t.category] = (byCategory[t.category] || 0) + t.amount; }
+    else if (t.type === 'expense') { expense += t.amount; if (t.category) { byCategory[t.category] = (byCategory[t.category] || 0) + t.amount; } }
     else if (t.type === 'transfer' && t.fromWorld !== t.toWorld) {
       if (t.toWorld === world) transferIn += t.amount; else transferOut += t.amount;
     }
@@ -91,7 +93,7 @@ export function monthSummary(state, key, world, uptoDay = 31) {
   return { income, expense, net: income - expense, transferIn, transferOut, byCategory, count: tx.length };
 }
 
-export function baselineVariable(state, world, now = today()) {
+export function baselineVariable(state: AppState, world: World, now = today()) {
   const months = [1, 2, 3].map((i) => mkey(addMonths(now, -i)));
   const sums = months.map((k) =>
     monthTx(state, k, world).filter((t) => t.type === 'expense' && !t.recurringId && !t.loanId && !t.tripId)
@@ -105,13 +107,13 @@ export function baselineVariable(state, world, now = today()) {
 
 /* ---------- Trips ---------- */
 export const TRIP_PARTS = ['travel', 'stay', 'food', 'activities', 'shopping', 'other'];
-export const tripTotal = (trip) => TRIP_PARTS.reduce((s, k) => s + (+trip.budget?.[k] || 0), 0);
-export const tripSpent = (state, trip) =>
+export const tripTotal = (trip: Trip) => TRIP_PARTS.reduce((s, k) => s + (+(trip.budget?.[k] || 0) || 0), 0);
+export const tripSpent = (state: AppState, trip: Trip) =>
   state.transactions.filter((t) => t.tripId === trip.id && t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-export const tripDays = (trip) => Math.max(1, daysBetween(parseDate(trip.start), parseDate(trip.end)) + 1);
+export const tripDays = (trip: Trip) => Math.max(1, daysBetween(parseDate(trip.start), parseDate(trip.end)) + 1);
 
 /* ---------- Goals ---------- */
-export function goalStats(goal, now = today()) {
+export function goalStats(goal: Goal, now = today()) {
   const left = Math.max(0, goal.target - goal.current);
   const monthly = +goal.monthly || 0;
   const monthsNeeded = monthly > 0 ? Math.ceil(left / monthly) : Infinity;
@@ -123,13 +125,13 @@ export function goalStats(goal, now = today()) {
 }
 
 /* ---------- Upcoming payments ---------- */
-export function upcoming(state, world, days = 30, now = today()) {
+export function upcoming(state: AppState, world: World, days = 30, now = today()) {
   const end = addDays(now, days);
   const out = [];
   for (const r of state.recurring.filter(inWorld(world))) {
     for (let i = 0; i < 2; i++) {
       const m = addMonths(now, i);
-      const d = new Date(m.getFullYear(), m.getMonth(), Math.min(+r.day || 1, daysInMonth(m.getFullYear(), m.getMonth())));
+      const d = new Date(m.getFullYear(), m.getMonth(), Math.min(+(r.day || 1), daysInMonth(m.getFullYear(), m.getMonth())));
       if (d >= now && d <= end) out.push({ id: r.id + i, name: r.name, amount: r.amount, date: ymd(d), type: r.type, kind: 'recurring', category: r.category });
     }
   }
@@ -145,8 +147,7 @@ export function upcoming(state, world, days = 30, now = today()) {
 }
 
 /* ---------- Forecast ---------- */
-// scenario: { incomeDelta, expenseDelta, oneTime, oneTimeMonth, incomeLoss, monthlySave, revenuePct }
-export function forecast(state, world, months = 6, sc = {}, now = today()) {
+export function forecast(state: AppState, world: World, months = 6, sc: ScenarioDef = {}, now = today()) {
   let bal = available(state, world);
   const variableBase = baselineVariable(state, world, now);
   const rows = [];
@@ -158,7 +159,7 @@ export function forecast(state, world, months = 6, sc = {}, now = today()) {
     let income = 0, recurringExp = 0, emis = 0, trips = 0, oneTime = 0;
     const tripList = [];
     for (const r of state.recurring.filter(inWorld(world))) {
-      if (i === 0 && (+r.day || 1) <= now.getDate()) continue;
+      if (i === 0 && (+(r.day || 1)) <= now.getDate()) continue;
       if (r.type === 'income') income += r.amount; else recurringExp += r.amount;
     }
     for (const l of state.loans.filter(inWorld(world))) {
@@ -173,16 +174,14 @@ export function forecast(state, world, months = 6, sc = {}, now = today()) {
       }
     }
     let variable = variableBase * remFrac;
-    // scenario adjustments
+    
     if (i >= 1 || remFrac > 0) {
-      const f = i === 0 ? remFrac : 1;
       if (sc.incomeDelta) income += sc.incomeDelta * (i === 0 ? 0 : 1);
       if (sc.revenuePct) income += (baseIncome * sc.revenuePct) * (i === 0 ? 0 : 1);
       if (sc.expenseDelta) recurringExp += sc.expenseDelta * (i === 0 ? 0 : 1);
       if (sc.incomeLoss && i >= 1 && i <= sc.incomeLoss) income = 0;
       if (sc.oneTime && i === (sc.oneTimeMonth || 0)) oneTime += sc.oneTime;
       variable *= sc.variablePct ? 1 + sc.variablePct : 1;
-      void f;
     }
     const saved = sc.monthlySave && i >= 1 ? sc.monthlySave : 0;
     const expense = recurringExp + emis + trips + variable + oneTime;
@@ -201,7 +200,7 @@ export function forecast(state, world, months = 6, sc = {}, now = today()) {
 }
 
 /* ---------- History (for charts) ---------- */
-export function history(state, world, months = 6, now = today()) {
+export function history(state: AppState, world: World, months = 6, now = today()) {
   const out = [];
   for (let i = months - 1; i >= 0; i--) {
     const key = mkey(addMonths(now, -i));
@@ -212,11 +211,11 @@ export function history(state, world, months = 6, now = today()) {
 }
 
 /* ---------- Student cycle ---------- */
-export function studentCycle(state, now = today()) {
+export function studentCycle(state: AppState, now = today()) {
   const pm = state.recurring.find((r) => r.type === 'income' && W(r) === 'personal' && /pocket|allowance|stipend/i.test(r.name))
     || state.recurring.find((r) => r.type === 'income' && W(r) === 'personal');
   if (!pm) return null;
-  const day = +pm.day || 1;
+  const day = +(pm.day || 1);
   let last = new Date(now.getFullYear(), now.getMonth(), day);
   if (last > now) last = new Date(now.getFullYear(), now.getMonth() - 1, day);
   const next = new Date(last.getFullYear(), last.getMonth() + 1, day);
@@ -230,7 +229,7 @@ export function studentCycle(state, now = today()) {
 }
 
 /* ---------- Business ---------- */
-export function businessMetrics(state, now = today()) {
+export function businessMetrics(state: AppState, now = today()) {
   const key = mkey(now), lastKey = mkey(addMonths(now, -1));
   const cur = monthSummary(state, lastKey, 'business');
   const prev = monthSummary(state, mkey(addMonths(now, -2)), 'business');
@@ -248,7 +247,7 @@ export function businessMetrics(state, now = today()) {
 }
 
 /* ---------- Insights ---------- */
-export function insights(state, world, now = today()) {
+export function insights(state: AppState, world: World, now = today()) {
   const out = [];
   const key = mkey(now), lastKey = mkey(addMonths(now, -1));
   const day = now.getDate();
@@ -259,7 +258,7 @@ export function insights(state, world, now = today()) {
     out.push({ tone: d <= 0 ? 'pos' : 'neg', text: `Spending is ${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'lower' : 'higher'} than this point last month.` });
   }
   const full = monthSummary(state, lastKey, world), full2 = monthSummary(state, mkey(addMonths(now, -2)), world);
-  let top = null;
+  let top: { c: string; dlt: number; v: number } | null = null;
   for (const [c, v] of Object.entries(full.byCategory)) {
     const dlt = v - (full2.byCategory[c] || 0);
     if (!top || dlt > top.dlt) top = { c, dlt, v };
@@ -273,7 +272,7 @@ export function insights(state, world, now = today()) {
   return out;
 }
 
-export function netWorth(state) {
+export function netWorth(state: AppState) {
   const assets = state.accounts.reduce((s, a) => s + accountBalance(state, a), 0) + (state.goals || []).reduce((s, g) => s + (+g.current || 0), 0) * 0;
   const cardDebt = state.cards.filter((c) => c.kind === 'credit').reduce((s, c) => s + cardStats(state, c).spent, 0);
   const loanDebt = state.loans.reduce((s, l) => s + loanStats(l).balance, 0);

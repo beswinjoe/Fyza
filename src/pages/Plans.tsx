@@ -4,8 +4,11 @@ import { useStore } from '../engine/store';
 import { inr, fmtDate, monthLabel } from '../engine/format';
 import { forecast, goalStats, tripTotal, tripSpent, tripDays, TRIP_PARTS, inWorld } from '../engine/finance';
 import { AreaChart, Seg, Ring, Bar } from '../components/ui';
+import { AppState } from '../types/app';
+import { Dispatch } from 'react';
+import { Action } from '../types/store';
 
-function ForecastView({ state, world }) {
+function ForecastView({ state, world }: { state: AppState; world: any }) {
   const fc = forecast(state, world, 6);
   const [sel, setSel] = useState(0);
   const r = fc[sel];
@@ -29,12 +32,12 @@ function ForecastView({ state, world }) {
         <div className="faint" style={{ fontSize: 13 }}>Expected balance at month end</div>
         <div className="divider" />
         {[
-          ['Income', r.income, 'pos'],
-          ['Recurring bills', -r.recurring - (sel === 0 ? 0 : 0)],
-          ['EMIs', -r.emis],
-          ['Everyday spending', -r.variable],
-          ...(sel === 0 ? [['Already spent', -(r.expense - r.recurring - r.emis - r.variable - r.trips - r.oneTime)]] : []),
-          ...r.tripList.map((t) => [`✈ ${t.name}`, -t.amount, 'warn']),
+          ['Income', r.income, 'pos'] as const,
+          ['Recurring bills', -r.recurring] as const,
+          ['EMIs', -r.emis] as const,
+          ['Everyday spending', -r.variable] as const,
+          ...(sel === 0 ? [['Already spent', -(r.expense - r.recurring - r.emis - r.variable - r.trips - r.oneTime)] as const] : []),
+          ...r.tripList.map((t) => [`✈ ${t.name}`, -t.amount, 'warn'] as const),
         ].filter(([, v]) => Math.round(v) !== 0).map(([l, v, tone]) => (
           <div key={l} className="row between" style={{ padding: '7px 0', fontSize: 13.5 }}><span className="muted">{l}</span><span className={`num ${tone || ''}`}>{inr(v, { sign: true })}</span></div>
         ))}
@@ -48,7 +51,7 @@ function ForecastView({ state, world }) {
   );
 }
 
-function GoalsView({ state, dispatch, openAdd, openItem }) {
+function GoalsView({ state, dispatch, openAdd, openItem }: { state: AppState; dispatch: Dispatch<Action>; openAdd: (t: string) => void; openItem: (t: string, id: string) => void }) {
   return (
     <div className="grid g-3 stagger">
       {state.goals.map((g) => {
@@ -76,7 +79,7 @@ function GoalsView({ state, dispatch, openAdd, openItem }) {
   );
 }
 
-function TripsView({ state, openAdd, openItem }) {
+function TripsView({ state, openAdd, openItem }: { state: AppState; openAdd: (t: string) => void; openItem: (t: string, id: string) => void }) {
   return (
     <div className="grid g-2 stagger">
       {state.trips.map((t) => {
@@ -97,7 +100,7 @@ function TripsView({ state, openAdd, openItem }) {
   );
 }
 
-const PRESETS = {
+const PRESETS: Record<string, [string, Record<string, number>][]> = {
   personal: [
     ['Buy ₹1.5L laptop', { oneTime: 150000, oneTimeMonth: 1 }], ['Save ₹15k / month', { monthlySave: 15000 }], ['Salary → ₹1L', { incomeDelta: 25000 }],
     ['Lose income 3 months', { incomeLoss: 3 }], ['Rent +₹5,000', { expenseDelta: 5000 }],
@@ -105,14 +108,14 @@ const PRESETS = {
   business: [['Revenue −20%', { revenuePct: -0.2 }], ['Hire at ₹40k/mo', { expenseDelta: 40000 }], ['New ₹2L campaign', { oneTime: 200000, oneTimeMonth: 1 }], ['Revenue +30%', { revenuePct: 0.3 }]],
 };
 
-function ScenarioView({ state, dispatch, world }) {
-  const [sc, setSc] = useState({});
+function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: Dispatch<Action>; world: any }) {
+  const [sc, setSc] = useState<Record<string, number>>({});
   const [name, setName] = useState('');
   const base = forecast(state, world, 12), alt = forecast(state, world, 12, { ...sc, expenseDelta: (sc.expenseDelta || 0) + (sc.monthlySave || 0) });
   const d = alt[11].balance - base[11].balance;
   const minAlt = Math.min(...alt.map((r) => r.balance));
-  const num = (k, label, step = 1000, suffix = '') => (
-    <div className="field"><label>{label}</label><input className="input" type="number" step={step} value={sc[k] ?? ''} placeholder={'0' + suffix} onChange={(e) => setSc({ ...sc, [k]: e.target.value === '' ? undefined : +e.target.value })} /></div>
+  const num = (k: string, label: string, step = 1000, suffix = '') => (
+    <div className="field"><label>{label}</label><input className="input" type="number" step={step} value={sc[k] ?? ''} placeholder={'0' + suffix} onChange={(e) => setSc({ ...sc, [k]: e.target.value === '' ? undefined as any : +e.target.value })} /></div>
   );
   const saved = (state.scenarios || []).filter(inWorld(world));
   return (
@@ -129,7 +132,7 @@ function ScenarioView({ state, dispatch, world }) {
             <div><div className="eyebrow">Lowest point</div><div className={`v num ${minAlt < 0 ? 'neg' : ''}`}>{inr(minAlt, { compact: true })}</div></div>
           </div>
         </div>
-        {sc.monthlySave > 0 && <div className="insight"><span className="spark-dot"><Sparkles /></span><p>Setting aside <b>{inr(sc.monthlySave)}</b> monthly builds <b>{inr(sc.monthlySave * 11, { compact: true })}</b> in savings over the year, while your spending balance stays {minAlt >= 0 ? 'positive' : <b className="neg">under pressure</b>}.</p></div>}
+        {(sc.monthlySave || 0) > 0 && <div className="insight"><span className="spark-dot"><Sparkles /></span><p>Setting aside <b>{inr(sc.monthlySave)}</b> monthly builds <b>{inr(sc.monthlySave * 11, { compact: true })}</b> in savings over the year, while your spending balance stays {minAlt >= 0 ? 'positive' : <b className="neg">under pressure</b>}.</p></div>}
       </div>
       <div className="stack">
         <div className="card card-pad">
@@ -146,7 +149,7 @@ function ScenarioView({ state, dispatch, world }) {
           </div>
           <div className="row" style={{ marginTop: 16, gap: 8 }}>
             <input className="input" placeholder="Name this scenario" value={name} onChange={(e) => setName(e.target.value)} />
-            <button className="btn primary" disabled={!Object.values(sc).some(Boolean)} onClick={() => { dispatch({ type: 'add', col: 'scenarios', item: { name: name || 'Untitled scenario', sc, world } }); setName(''); }}>Save</button>
+            <button className="btn primary" disabled={!Object.values(sc).some(Boolean)} onClick={() => { dispatch({ type: 'add', col: 'scenarios', item: { name: name || 'Untitled scenario', sc, world } } as any); setName(''); }}>Save</button>
           </div>
           <button className="btn ghost sm" style={{ marginTop: 8 }} onClick={() => setSc({})}>Reset</button>
         </div>
@@ -154,7 +157,7 @@ function ScenarioView({ state, dispatch, world }) {
           <div className="card card-pad">
             <div className="card-title" style={{ marginBottom: 8 }}>Saved scenarios</div>
             <div className="list">{saved.map((s) => (
-              <div key={s.id} className="li" onClick={() => setSc(s.sc)}>
+              <div key={s.id} className="li" onClick={() => setSc(s.sc as any)}>
                 <div className="meta"><div className="t">{s.name}</div><div className="s num">{inr(forecast(state, world, 12, s.sc)[11].balance, { compact: true })} in 12 mo</div></div>
                 <button className="btn ghost icon sm" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'remove', col: 'scenarios', id: s.id }); }}><Trash2 /></button>
               </div>
@@ -166,10 +169,10 @@ function ScenarioView({ state, dispatch, world }) {
   );
 }
 
-export default function PlansPage({ openAdd, openItem }) {
+export default function PlansPage({ openAdd, openItem }: { openAdd: (t: string) => void; openItem: (t: string, id: string) => void }) {
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState('forecast');
-  const world = state.world;
+  const world = state.world as string;
   return (
     <div className="page">
       <div className="page-head">

@@ -7,8 +7,10 @@ import { Money, CountUp, Bar, Icon, AreaChart, BarsChart, Seg, Ring, catIcon, AC
 import { CreditCard, HandCoins } from 'lucide-react';
 import { TxRow } from './Activity';
 import { BusinessHero } from './Business';
+import { AppState } from '../types/app';
 
-export function Insight({ items, onAsk }) {
+
+export function Insight({ items, onAsk }: { items: any[]; onAsk: () => void }) {
   return (
     <div className="card card-pad">
       <div className="card-head"><div className="card-title"><span className="spark-dot"><Sparkles /></span>What Fyza noticed</div></div>
@@ -26,7 +28,7 @@ export function Insight({ items, onAsk }) {
   );
 }
 
-function StudentHero({ state }) {
+function StudentHero({ state }: { state: AppState }) {
   const c = studentCycle(state);
   if (!c) return null;
   return (
@@ -51,7 +53,7 @@ function StudentHero({ state }) {
   );
 }
 
-function PersonalHero({ state }) {
+function PersonalHero({ state }: { state: AppState }) {
   const now = today();
   const key = mkey(now);
   const s = monthSummary(state, key, 'personal');
@@ -80,7 +82,7 @@ function PersonalHero({ state }) {
   );
 }
 
-export function FlowCard({ state, world }) {
+export function FlowCard({ state, world }: { state: AppState; world: any }) {
   const [mode, setMode] = useState('forecast');
   const hist = history(state, world, 6);
   const fc = forecast(state, world, 6);
@@ -117,7 +119,7 @@ export function FlowCard({ state, world }) {
   );
 }
 
-export function UpcomingCard({ state, world }) {
+export function UpcomingCard({ state, world }: { state: AppState; world: any }) {
   const up = upcoming(state, world, 21).slice(0, 5);
   const total = up.filter((u) => u.type === 'expense').reduce((s, u) => s + u.amount, 0);
   return (
@@ -127,7 +129,7 @@ export function UpcomingCard({ state, world }) {
         {up.length === 0 && <div className="empty">Nothing due soon.</div>}
         {up.map((u) => (
           <div className="li" key={u.id + u.date}>
-            <Icon as={catIcon(u.category)} size="sm" />
+            <Icon as={catIcon(u.category || '')} size="sm" />
             <div className="meta"><div className="t">{u.name}</div><div className="s">{relDay(u.date)}</div></div>
             <div className={`amt num ${u.type === 'income' ? 'pos' : ''}`}>{u.type === 'income' ? '+' : ''}{inr(u.amount)}</div>
           </div>
@@ -137,7 +139,7 @@ export function UpcomingCard({ state, world }) {
   );
 }
 
-export function GoalsCard({ state, onOpen, onAdd }) {
+export function GoalsCard({ state, onOpen, onAdd }: { state: AppState; onOpen: (t: string, id: string) => void; onAdd: () => void }) {
   return (
     <div className="card card-pad">
       <div className="card-head"><div className="card-title">Goals</div><button className="btn ghost sm icon" onClick={onAdd}><Plus /></button></div>
@@ -158,8 +160,8 @@ export function GoalsCard({ state, onOpen, onAdd }) {
   );
 }
 
-export function TripCard({ state, onOpen }) {
-  const t = [...state.trips].filter((x) => parseDate(x.end) >= today()).sort((a, b) => a.start.localeCompare(b.start))[0];
+export function TripCard({ state, onOpen }: { state: AppState; onOpen: (t: string, id: string) => void }) {
+  const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
   if (!t) return null;
   const fc = forecast(state, t.world || 'personal', 12);
   const row = fc.find((r) => r.key === t.start.slice(0, 7));
@@ -180,7 +182,7 @@ export function TripCard({ state, onOpen }) {
   );
 }
 
-export function MoneyCard({ state, world, onOpen, onAdd }) {
+export function MoneyCard({ state, world, onOpen, onAdd }: { state: AppState; world: any; onOpen: (t: string, id: string) => void; onAdd: (t: string) => void }) {
   const [tab, setTab] = useState('accounts');
   const accs = state.accounts.filter(inWorld(world));
   const loans = state.loans.filter(inWorld(world));
@@ -225,9 +227,9 @@ export function MoneyCard({ state, world, onOpen, onAdd }) {
   );
 }
 
-export default function HomePage({ go, openAdd, openPalette, openItem }) {
+export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (p: string) => void; openAdd: (t?: string) => void; openPalette: () => void; openItem: (t: string, id: string) => void }) {
   const { state } = useStore();
-  const world = state.world;
+  const world = state.world as string;
   const student = state.profiles.includes('student') && !state.profiles.includes('personal');
   const recent = state.transactions.filter((t) => (t.world || 'personal') === world).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
   const hour = new Date().getHours();
@@ -256,7 +258,7 @@ export default function HomePage({ go, openAdd, openPalette, openItem }) {
           </div>
         </div>
         <div className="stack">
-          <Insight items={insights(state, world)} onAsk={openPalette} />
+          <Insight items={insights(state, world as any)} onAsk={openPalette} />
           {world === 'personal' && <TripCard state={state} onOpen={openItem} />}
           {world === 'personal' && <GoalsCard state={state} onOpen={openItem} onAdd={() => openAdd('goal')} />}
           <MoneyCard state={state} world={world} onOpen={openItem} onAdd={openAdd} />

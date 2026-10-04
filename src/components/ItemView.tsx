@@ -1,12 +1,14 @@
+
 import { Trash2 } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { inr, fmtDate, monthLabel } from '../engine/format';
 import { goalStats, loanStats, cardStats, tripTotal, tripSpent, TRIP_PARTS } from '../engine/finance';
 import { Modal, Ring, Bar } from './ui';
+import { AppState } from '../types/app';
 
-export function ItemView({ type, id, onClose }) {
+export function ItemView({ type, id, onClose }: { type: string; id: string; onClose: () => void }) {
   const { state, dispatch } = useStore();
-  const remove = (col) => { dispatch({ type: 'remove', col, id }); onClose(); };
+  const remove = (col: keyof AppState) => { dispatch({ type: 'remove', col, id }); onClose(); };
 
   if (type === 'goal') {
     const g = state.goals.find((x) => x.id === id);

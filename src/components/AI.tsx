@@ -4,33 +4,43 @@ import { useStore } from '../engine/store';
 import { interpret, SUGGESTIONS } from '../engine/ai';
 import { inr } from '../engine/format';
 import { AreaChart } from './ui';
+import { AppState } from '../types/app';
+import { AIResult } from '../types/ai';
 
 export function useAI() {
   const { state, dispatch } = useStore();
-  const ask = (text) => {
+  const ask = (text: string) => {
     const r = interpret(text, state);
-    if (r.autoApply && r.actions?.[0]) { dispatch({ type: 'batch', ops: r.actions[0].ops }); r.applied = 0; }
+    if (r.autoApply && r.actions?.[0]) { 
+      dispatch({ type: 'batch', ops: r.actions[0].ops as any[] }); 
+      r.applied = 0 as any; 
+    }
     dispatch({ type: 'set', patch: { aiHistory: [...state.aiHistory.slice(-30), r] } });
     return r;
   };
   return ask;
 }
 
-export function suggestionsFor(state) {
+export function suggestionsFor(state: AppState): string[] {
   if (state.world === 'business') return SUGGESTIONS.business;
   return state.profiles.includes('student') && !state.profiles.includes('personal') ? SUGGESTIONS.student : SUGGESTIONS.personal;
 }
 
-export function AICard({ r, compact }) {
+export function AICard({ r, compact }: { r: AIResult; compact?: boolean }) {
   const { state, dispatch } = useStore();
   const live = state.aiHistory.find((x) => x.id === r.id) || r;
-  const apply = (i) => {
-    dispatch({ type: 'batch', ops: [...live.actions[i].ops, { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: i } }] });
+  
+  const apply = (i: number) => {
+    if (!live.actions) return;
+    dispatch({ type: 'batch', ops: [...live.actions[i].ops as any[], { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: i } }] });
   };
+  
   const undo = () => {
-    const ops = live.actions[live.applied].ops.map((o) => ({ type: 'remove', col: o.col, id: o.item.id }));
-    dispatch({ type: 'batch', ops: [...ops, { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: undefined } }] });
+    if (!live.actions || (live as any).applied == null) return;
+    const ops = live.actions[(live as any).applied].ops.map((o: any) => ({ type: 'remove', col: o.col, id: o.item.id }));
+    dispatch({ type: 'batch', ops: [...ops, { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: undefined } }] } as any);
   };
+  
   const tone = live.tone;
   return (
     <div className="ai-card">
@@ -42,7 +52,7 @@ export function AICard({ r, compact }) {
         </div>
         <div className="ai-title">{live.title}</div>
         <div className="ai-sum">{live.summary}</div>
-        {live.bullets?.length > 0 && <div className="ai-bullets">{live.bullets.map((b, i) => <div key={i}>{b}</div>)}</div>}
+        {live.bullets && live.bullets.length > 0 && <div className="ai-bullets">{live.bullets.map((b, i) => <div key={i}>{b}</div>)}</div>}
         {live.breakdown && (
           <div className="row wrap" style={{ marginTop: 12, gap: 6 }}>
             {Object.entries(live.breakdown).map(([k, v]) => <span key={k} className="chip">{k[0].toUpperCase() + k.slice(1)} <b className="num" style={{ color: 'var(--text)' }}>{inr(v, { compact: true })}</b></span>)}
@@ -57,14 +67,14 @@ export function AICard({ r, compact }) {
           </div>
         )}
       </div>
-      {live.metrics?.length > 0 && (
+      {live.metrics && live.metrics.length > 0 && (
         <div className="ai-metrics">
           {live.metrics.map((m, i) => <div key={i}><div className="eyebrow">{m.label}</div><div className={`v num ${m.tone || ''}`}>{m.value}</div></div>)}
         </div>
       )}
-      {live.actions?.length > 0 && (
+      {live.actions && live.actions.length > 0 && (
         <div className="ai-actions">
-          {live.applied != null ? (
+          {(live as any).applied != null ? (
             <><span className="applied"><Check /> Added to your workspace</span><button className="btn ghost sm" style={{ marginLeft: 'auto' }} onClick={undo}><Undo2 /> Undo</button></>
           ) : (
             <>{live.actions.map((a, i) => <button key={i} className="btn primary sm" onClick={() => apply(i)}>{a.label}</button>)}<span className="faint" style={{ fontSize: 12, marginLeft: 'auto' }}>Nothing changes until you confirm</span></>
@@ -75,21 +85,24 @@ export function AICard({ r, compact }) {
   );
 }
 
-export function Palette({ onClose, onOpenAI }) {
+export function Palette({ onClose, onOpenAI }: { onClose: () => void; onOpenAI: () => void }) {
   const { state } = useStore();
   const ask = useAI();
   const [q, setQ] = useState('');
-  const [res, setRes] = useState(null);
+  const [res, setRes] = useState<AIResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState(-1);
-  const ref = useRef(null);
+  const ref = useRef<HTMLInputElement>(null);
   const sugg = suggestionsFor(state);
-  useEffect(() => { ref.current?.focus(); const k = (e) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
-  const run = (text) => {
+  
+  useEffect(() => { ref.current?.focus(); const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
+  
+  const run = (text: string) => {
     if (!text.trim()) return;
     setBusy(true); setRes(null);
     setTimeout(() => { setRes(ask(text)); setBusy(false); setQ(''); }, 420);
   };
+  
   return (
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="palette">
@@ -118,7 +131,7 @@ export function Palette({ onClose, onOpenAI }) {
   );
 }
 
-export function Composer({ onSubmit, placeholder = 'Ask or tell Fyza anything…' }) {
+export function Composer({ onSubmit, placeholder = 'Ask or tell Fyza anything…' }: { onSubmit: (q: string) => void; placeholder?: string }) {
   const [q, setQ] = useState('');
   return (
     <form className="ai-composer" onSubmit={(e) => { e.preventDefault(); if (q.trim()) { onSubmit(q); setQ(''); } }}>

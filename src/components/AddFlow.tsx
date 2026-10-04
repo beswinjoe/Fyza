@@ -5,6 +5,8 @@ import { ymd, today, inr, addDays } from '../engine/format';
 import { emi, TRIP_PARTS, tripDays } from '../engine/finance';
 import { estimateTrip } from '../engine/ai';
 import { Modal, Icon } from './ui';
+import { AppState } from '../types/app';
+
 
 export const TYPES = [
   { k: 'expense', label: 'Expense', icon: ArrowUpRight, d: 'Something you paid for' },
@@ -23,7 +25,19 @@ export const TYPES = [
   { k: 'custom', label: 'Custom', icon: Shapes, d: 'Coming soon', soon: true },
 ];
 
-function schema(type, state) {
+type FieldDef = {
+  k: string;
+  label?: string;
+  type: string;
+  full?: boolean;
+  ph?: string;
+  options?: { value: string; label: string }[];
+  def?: any;
+  creatable?: boolean;
+  when?: (v: any) => boolean;
+};
+
+function schema(type: string, state: AppState): FieldDef[] {
   const accs = state.accounts.map((a) => ({ value: a.id, label: `${a.name}${a.world === 'business' ? ' · Business' : ''}` }));
   const cards = [{ value: '', label: 'None' }, ...state.cards.map((c) => ({ value: c.id, label: c.name }))];
   const cats = state.categories.map((c) => ({ value: c, label: c }));
@@ -108,19 +122,19 @@ function schema(type, state) {
   }
 }
 
-function toOps(type, v, state) {
-  const n = (x) => +x || 0;
+function toOps(type: string, v: Record<string, any>, state: AppState) {
+  const n = (x: any) => +x || 0;
   const world = state.world;
-  const accWorld = (id) => state.accounts.find((a) => a.id === id)?.world || 'personal';
+  const accWorld = (id: string) => state.accounts.find((a) => a.id === id)?.world || 'personal';
   switch (type) {
     case 'expense': case 'income':
-      return [{ col: 'transactions', item: { type, amount: n(v.amount), note: v.note || v.category, category: v.category, date: v.date, accountId: v.accountId, cardId: v.cardId || undefined, tripId: v.tripId || undefined, tags: (v.tags || '').split(',').map((s) => s.trim()).filter(Boolean), world: accWorld(v.accountId) } }];
+      return [{ col: 'transactions', item: { type, amount: n(v.amount), note: v.note || v.category, category: v.category, date: v.date, accountId: v.accountId, cardId: v.cardId || undefined, tripId: v.tripId || undefined, tags: (v.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean), world: accWorld(v.accountId) } }];
     case 'recurring': return [{ col: 'recurring', item: { name: v.name || v.category, type: v.type, amount: n(v.amount), day: n(v.day) || 1, category: v.category, accountId: v.accountId, world: accWorld(v.accountId) } }];
     case 'account': return [{ col: 'accounts', item: { name: v.name || 'Account', type: v.type, institution: v.institution, opening: n(v.opening), currency: v.currency, notes: v.notes, world } }];
     case 'card': return [{ col: 'cards', item: { name: v.name || 'Card', kind: v.kind, last4: v.last4, limit: n(v.limit), statementDay: n(v.statementDay), dueDay: n(v.dueDay), accountId: v.accountId } }];
     case 'loan': return [{ col: 'loans', item: { name: v.name || 'Loan', type: v.type, lender: v.lender, principal: n(v.principal), rate: n(v.rate), tenureMonths: n(v.tenureMonths), startDate: v.startDate, world } }];
     case 'goal': {
-      const months = Math.max(1, Math.round((new Date(v.targetDate) - today()) / (30.4 * 86400000)));
+      const months = Math.max(1, Math.round((new Date(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
       return [{ col: 'goals', item: { name: v.name || 'Goal', kind: v.kind, target: n(v.target), current: n(v.current), targetDate: v.targetDate, monthly: n(v.monthly) || Math.ceil((n(v.target) - n(v.current)) / months / 100) * 100, world } }];
     }
     case 'trip': return [{ col: 'trips', item: { destination: v.destination || 'Trip', start: v.start, end: v.end, budget: Object.fromEntries(TRIP_PARTS.map((p) => [p, n(v[`b_${p}`])])), world } }];
@@ -129,27 +143,27 @@ function toOps(type, v, state) {
   }
 }
 
-export function AddFlow({ initial, onClose, onDone }) {
+export function AddFlow({ initial, onClose, onDone }: { initial: string | null; onClose: () => void; onDone?: (msg: string) => void }) {
   const { state, dispatch } = useStore();
-  const [type, setType] = useState(initial || null);
+  const [type, setType] = useState<string | null>(initial || null);
   const meta = TYPES.find((t) => t.k === type);
   const fields = useMemo(() => (type ? schema(type, state) : []), [type, state]);
-  const [v, setV] = useState({});
-  const val = (f) => v[f.k] ?? f.def ?? (f.type === 'select' ? f.options?.[0]?.value : '');
+  const [v, setV] = useState<Record<string, any>>({});
+  const val = (f: FieldDef) => v[f.k] ?? f.def ?? (f.type === 'select' ? f.options?.[0]?.value : '');
   const values = Object.fromEntries(fields.map((f) => [f.k, val(f)]));
-  const set = (k, x) => setV((p) => ({ ...p, [k]: x }));
+  const set = (k: string, x: any) => setV((p) => ({ ...p, [k]: x }));
 
-  const pick = (k) => { setType(k); setV({}); };
+  const pick = (k: string) => { setType(k); setV({}); };
   const autoTrip = () => {
-    const days = tripDays({ start: values.start, end: values.end });
+    const days = tripDays({ start: values.start, end: values.end } as any);
     const est = estimateTrip(values.destination || '', days);
     setV((p) => ({ ...p, ...Object.fromEntries(TRIP_PARTS.map((x) => [`b_${x}`, est[x]])) }));
   };
   const valid = type && (values.amount > 0 || values.principal > 0 || values.target > 0 || values.name || values.destination);
   const submit = () => {
-    const ops = toOps(type, values, state);
-    dispatch({ type: 'batch', ops: ops.map((o) => ({ type: 'add', ...o })) });
-    onDone?.(`${meta.label} added`);
+    const ops = toOps(type!, values, state);
+    dispatch({ type: 'batch', ops: ops.map((o) => ({ type: 'add', ...(o as any) })) });
+    onDone?.(`${meta?.label} added`);
     onClose();
   };
 
@@ -169,8 +183,8 @@ export function AddFlow({ initial, onClose, onDone }) {
   }
 
   return (
-    <Modal title={<><button className="btn ghost icon sm" onClick={() => setType(null)} style={{ marginLeft: -8 }}><ChevronLeft /></button>New {meta.label.toLowerCase()}</>} onClose={onClose}
-      foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" disabled={!valid} onClick={submit}>Add {meta.label.toLowerCase()}</button></>}>
+    <Modal title={<><button className="btn ghost icon sm" onClick={() => setType(null)} style={{ marginLeft: -8 }}><ChevronLeft /></button>New {meta?.label.toLowerCase()}</>} onClose={onClose}
+      foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn primary" disabled={!valid} onClick={submit}>Add {meta?.label.toLowerCase()}</button></>}>
       <div className="form">
         {fields.filter((f) => !f.when || f.when(values)).map((f) => {
           if (f.type === 'loanPreview') {
@@ -182,7 +196,7 @@ export function AddFlow({ initial, onClose, onDone }) {
             </div>;
           }
           if (f.type === 'goalPreview') {
-            const months = Math.max(1, Math.round((new Date(values.targetDate) - today()) / (30.4 * 86400000)));
+            const months = Math.max(1, Math.round((new Date(values.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
             const need = Math.max(0, (values.target || 0) - (values.current || 0));
             return <div className="preview" key={f.k}>
               <div><div className="eyebrow">Remaining</div><div className="v num">{inr(need, { compact: true })}</div></div>
@@ -193,7 +207,7 @@ export function AddFlow({ initial, onClose, onDone }) {
           if (f.type === 'tripPreview') {
             const total = TRIP_PARTS.reduce((s, p) => s + (+values[`b_${p}`] || 0), 0);
             return <div className="preview" key={f.k} style={{ gridTemplateColumns: '1fr auto', alignItems: 'center' }}>
-              <div><div className="eyebrow">Trip budget · {tripDays({ start: values.start, end: values.end })} days</div><div className="v num">{inr(total)}</div></div>
+              <div><div className="eyebrow">Trip budget · {tripDays({ start: values.start, end: values.end } as any)} days</div><div className="v num">{inr(total)}</div></div>
               <button className="btn sm" onClick={autoTrip}>✦ Estimate for me</button>
             </div>;
           }
@@ -202,7 +216,7 @@ export function AddFlow({ initial, onClose, onDone }) {
               <label>{f.label}</label>
               {f.type === 'select' ? (
                 <select className="select" value={val(f)} onChange={(e) => set(f.k, e.target.value)}>
-                  {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               ) : f.type === 'textarea' ? (
                 <textarea className="textarea" value={val(f)} onChange={(e) => set(f.k, e.target.value)} />

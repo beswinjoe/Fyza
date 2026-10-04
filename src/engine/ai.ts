@@ -1,23 +1,25 @@
 // AI layer — local natural-language understanding over the financial engine.
-// Designed as a pluggable interface: interpret(text, state) -> structured response.
-// A hosted LLM can later replace `interpret` while keeping the same response shape.
 import { today, ymd, mkey, addMonths, monthLabel, MONTHS_LONG, inr, uid, daysInMonth, addDays } from './format';
 import { emi, forecast, available, monthSummary, studentCycle, baselineVariable, businessMetrics, W } from './finance';
+import { AppState } from '../types/app';
+import { AIResult } from '../types/ai';
+import { AIAction } from '../types/store';
+import { TransactionType } from '../types/finance';
 
-const UNITS = { k: 1e3, thousand: 1e3, l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
-export function amounts(text) {
+const UNITS: Record<string, number> = { k: 1e3, thousand: 1e3, l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
+export function amounts(text: string): number[] {
   const re = /(₹|rs\.?|inr)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|thousand|cr|k|l)?\b(\s*(%|percent|days?|years?|yrs?|months?|st|nd|rd|th|am|pm))?/gi;
   const out = [];
   let m;
   while ((m = re.exec(text))) {
     if (m[5]) continue;
-    const v = parseFloat(m[2].replace(/,/g, '')) * (m[3] ? UNITS[m[3].toLowerCase()] : 1);
+    const v = parseFloat(m[2].replace(/,/g, '')) * (m[3] ? (UNITS[m[3].toLowerCase()] || 1) : 1);
     out.push({ v, strong: !!(m[1] || m[3]) || v >= 100 });
   }
   return out.filter((x) => x.strong).map((x) => x.v);
 }
 
-const CATS = [
+const CATS: [string, RegExp][] = [
   ['Food', /dinner|lunch|breakfast|food|restaurant|swiggy|zomato|coffee|cafe|pizza|snack|chai|meal|canteen/],
   ['Groceries', /grocer|bigbasket|zepto|blinkit|vegetable|supermarket/],
   ['Transport', /uber|ola|cab|metro|fuel|petrol|diesel|auto|bus|train|rapido|parking/],
@@ -30,10 +32,10 @@ const CATS = [
   ['Education', /book|course|college|fees|tuition|exam/],
   ['Travel', /flight|hotel|trip|travel/],
 ];
-const catOf = (t) => (CATS.find(([, re]) => re.test(t)) || ['Other'])[0];
-const cap = (s) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+const catOf = (t: string) => (CATS.find(([, re]) => re.test(t)) || ['Other'])[0];
+const cap = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
-function monthFrom(text, now) {
+function monthFrom(text: string, now: Date) {
   const t = text.toLowerCase();
   const i = MONTHS_LONG.findIndex((m) => new RegExp(`\\b(${m.toLowerCase()}|${m.slice(0, 3).toLowerCase()})\\b`).test(t));
   if (i >= 0) {
@@ -46,21 +48,21 @@ function monthFrom(text, now) {
   if (/next month/.test(t)) return addMonths(now, 1);
   return null;
 }
-const WORDNUM = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, twelve: 12, nine: 9 };
+const WORDNUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, twelve: 12, nine: 9 };
 
 const INTL = /germany|europe|paris|france|london|uk|dubai|thailand|bali|japan|usa|america|singapore|switzerland|italy|spain|vietnam|maldives|australia/i;
-export function estimateTrip(dest, days) {
+export function estimateTrip(dest: string, days: number): Record<string, number> {
   const intl = INTL.test(dest);
   const perDay = intl ? 14000 : 3800;
   const travel = intl ? 75000 : Math.round(days * 1700);
   const base = perDay * days;
-  const r = (x) => Math.round(x / 100) * 100;
+  const r = (x: number) => Math.round(x / 100) * 100;
   return { travel: r(travel), stay: r(base * 0.42), food: r(base * 0.26), activities: r(base * 0.16), shopping: r(base * 0.1), other: r(base * 0.06) };
 }
 
-const add = (col, item) => ({ type: 'add', col, item: { id: uid(), ...item } });
+const add = (col: keyof AppState, item: Record<string, unknown>): AIAction => ({ type: 'add', col, item: { id: uid(), ...item } });
 
-export function interpret(text, state) {
+export function interpret(text: string, state: AppState): AIResult {
   const now = today();
   const t = text.toLowerCase().trim();
   const world = state.world;
@@ -68,19 +70,19 @@ export function interpret(text, state) {
   const amt = nums[0];
   const fc = forecast(state, world, 12);
   const avail = available(state, world);
-  const resp = (o) => ({ id: uid(), q: text, at: Date.now(), ...o });
+  const resp = (o: Omit<AIResult, 'id' | 'q' | 'at'>): AIResult => ({ id: uid(), q: text, at: Date.now(), ...o });
   const monthlyIncome = state.recurring.filter((r) => W(r) === world && r.type === 'income').reduce((s, r) => s + r.amount, 0);
   const monthlyExp = fc[1]?.expense || 0;
-  const chartOf = (rows, alt) => ({ labels: rows.map((r) => r.label), base: rows.map((r) => r.balance), alt: alt?.map((r) => r.balance) });
+  const chartOf = (rows: any[], alt?: any[]) => ({ labels: rows.map((r) => r.label), base: rows.map((r) => r.balance), alt: alt?.map((r) => r.balance) });
 
   /* ---------- What-if ---------- */
   if (/^(what if|what happens if|if )/.test(t)) {
-    const sc = {}; const desc = [];
+    const sc: Record<string, number> = {}; const desc: string[] = [];
     const to = t.match(/(salary|income|revenue)\s+(?:increases?|goes up|becomes|rises?|is)\s+(?:to\s+)?/);
     if (to && amt && /to|becomes|is/.test(t)) { sc.incomeDelta = amt - monthlyIncome; desc.push(`Income becomes ${inr(amt)}/mo`); }
     else if (/(salary|income).*(increase|rise|hike).*by/.test(t) && amt) { sc.incomeDelta = amt; desc.push(`Income +${inr(amt)}/mo`); }
     const fall = t.match(/(revenue|income|sales).*(falls?|drops?|decreases?)\s+(?:by\s+)?(\d+)\s*%/);
-    if (fall) { sc.revenuePct = -fall[3] / 100; desc.push(`${cap(fall[1])} −${fall[3]}%`); }
+    if (fall) { sc.revenuePct = -Number(fall[3]) / 100; desc.push(`${cap(fall[1])} −${fall[3]}%`); }
     const lose = t.match(/lose (?:my )?(?:income|job|salary).*?(\d+|one|two|three|four|five|six)\s*months?/);
     if (lose) { sc.incomeLoss = +lose[1] || WORDNUM[lose[1]]; desc.push(`No income for ${sc.incomeLoss} months`); }
     if (/(rent|expenses?|cost).*(increase|rise|goes up).*by/.test(t) && amt) { sc.expenseDelta = amt; desc.push(`Expenses +${inr(amt)}/mo`); }
@@ -114,7 +116,7 @@ export function interpret(text, state) {
       const runway = world === 'business' ? businessMetrics(state) : null;
       return resp({
         kind: 'answer', title: ok ? 'Yes, with care' : 'Not yet', tone: ok ? 'pos' : 'neg',
-        summary: ok ? `Adding ${inr(amt)}/month keeps your balance positive for the next 6 months, ending around ${inr(alt[5].balance, { compact: true })}.` : `A ${inr(amt)}/month commitment would push your balance negative by ${alt.find((r) => r.balance < 0).label}.`,
+        summary: ok ? `Adding ${inr(amt)}/month keeps your balance positive for the next 6 months, ending around ${inr(alt[5].balance, { compact: true })}.` : `A ${inr(amt)}/month commitment would push your balance negative by ${alt.find((r) => r.balance < 0)?.label}.`,
         metrics: [{ label: 'New monthly cost', value: inr(amt) }, { label: 'Balance in 6 mo', value: inr(alt[5].balance, { compact: true }), tone: ok ? 'pos' : 'neg' },
           runway ? { label: 'Runway after', value: `${(runway.cash / (runway.avgExp + amt)).toFixed(1)} mo` } : { label: 'Monthly income', value: inr(monthlyIncome) }],
         chart: chartOf(forecast(state, world, 6), alt),
@@ -136,7 +138,7 @@ export function interpret(text, state) {
     const g = { name: cap(item === 'this' ? 'Planned purchase' : item), kind: 'custom', target: amt, current: 0, monthly: Math.ceil(amt / Math.max(1, monthsAway || 6) / 500) * 500, targetDate: ymd(when ? new Date(when.key + '-01') : addMonths(now, 6)) };
     return resp({
       kind: 'answer', title: when ? `Not today — comfortably by ${monthLabel(when.key, true)}` : 'Not in the next 12 months', tone: 'neg',
-      summary: when ? `Buying now would leave ${inr(avail - amt)}, below your one-month cushion of ${inr(buffer)}. Saving ${inr(g.monthly)}/month gets you there in ${monthsAway} month${monthsAway > 1 ? 's' : ''}.` : `Your projected surplus isn't large enough yet. Consider a smaller budget or a longer savings plan.`,
+      summary: when ? `Buying now would leave ${inr(avail - amt)}, below your one-month cushion of ${inr(buffer)}. Saving ${inr(g.monthly)}/month gets you there in ${monthsAway} month${(monthsAway || 0) > 1 ? 's' : ''}.` : `Your projected surplus isn't large enough yet. Consider a smaller budget or a longer savings plan.`,
       metrics: [{ label: 'Available now', value: inr(avail, { compact: true }) }, { label: 'Price', value: inr(amt, { compact: true }) }, { label: 'Save monthly', value: inr(g.monthly) }],
       chart: chartOf(fc.slice(0, 6), forecast(state, world, 6, { oneTime: amt })),
       actions: [{ label: `Create “${g.name}” goal`, ops: [add('goals', g)] }],
@@ -193,9 +195,9 @@ export function interpret(text, state) {
 
   /* ---------- When can I afford ---------- */
   if (/when can i (afford|buy)/.test(t)) {
-    const guess = { car: 800000, bike: 150000, house: 6000000, iphone: 120000, phone: 60000, laptop: 90000 };
+    const guess: Record<string, number> = { car: 800000, bike: 150000, house: 6000000, iphone: 120000, phone: 60000, laptop: 90000 };
     const k = Object.keys(guess).find((x) => t.includes(x));
-    const price = amt || guess[k] || 100000;
+    const price = amt || (k ? guess[k] : 100000);
     const when = fc.find((r) => r.balance - price >= monthlyExp);
     const surplus = Math.max(1, (fc[11].balance - fc[0].balance) / 11);
     const monthsNeeded = when ? fc.indexOf(when) : Math.ceil((price + monthlyExp - avail) / surplus);
@@ -259,7 +261,8 @@ export function interpret(text, state) {
     const days = +(t.match(/(\d+)\s*days?/) || [, 4])[1];
     const m = monthFrom(t, now) || addMonths(now, 1);
     const start = new Date(m.getFullYear(), m.getMonth(), m.getMonth() === now.getMonth() ? Math.min(now.getDate() + 7, 20) : 18);
-    const budget = amt ? Object.fromEntries(Object.entries(estimateTrip(dest, days)).map(([k, v], _, arr) => [k, Math.round((v / arr.reduce((s, [, x]) => s + x, 0)) * amt)])) : estimateTrip(dest, days);
+    const budgetRaw = estimateTrip(dest, days);
+    const budget = amt ? Object.fromEntries(Object.entries(budgetRaw).map(([k, v], _, arr) => [k, Math.round((v / arr.reduce((s, [, x]) => s + Number(x), 0)) * amt)])) : budgetRaw;
     const total = Object.values(budget).reduce((a, b) => a + b, 0);
     const key = mkey(start);
     const row = fc.find((r) => r.key === key);
@@ -326,7 +329,7 @@ export function interpret(text, state) {
   const isExp = /spent|spend|paid|bought|cost|purchased|gave/.test(t);
   const isInc = /earned|received|got paid|got|made|income|refund|sold/.test(t);
   if ((isExp || isInc) && amt) {
-    const type = isExp ? 'expense' : 'income';
+    const type: TransactionType = isExp ? 'expense' : 'income';
     const what = (t.match(/(?:on|for|at|from) (?:a |an |the |my )?([a-z' ]+?)(?:\s+(?:today|yesterday|with|using|via|at|on)\b|[.!?]|$)/) || [])[1] || (isExp ? catOf(t) : 'Income');
     const date = /yesterday/.test(t) ? ymd(addDays(now, -1)) : ymd(now);
     const card = state.cards.find((c) => t.includes(c.name.toLowerCase()) || (c.kind === 'credit' && /credit card/.test(t)));

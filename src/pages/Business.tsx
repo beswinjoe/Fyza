@@ -4,7 +4,9 @@ import { businessMetrics } from '../engine/finance';
 import { inr, monthLabel } from '../engine/format';
 import { CountUp, Bar, AreaChart, Seg } from '../components/ui';
 
-export function BusinessHero({ state }) {
+import { AppState } from '../types/app';
+
+export function BusinessHero({ state }: { state: AppState }) {
   const m = businessMetrics(state);
   return (
     <div className="card hero">

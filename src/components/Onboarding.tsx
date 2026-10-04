@@ -16,7 +16,7 @@ export default function Onboarding() {
   const [sel, setSel] = useState(['personal']);
   const [step, setStep] = useState(0);
 
-  const toggle = (id) => setSel((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const toggle = (id: string) => setSel((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const complete = () => {
     dispatch({ type: 'seed', opts: { name, profiles: sel.length ? sel : ['personal'] } });

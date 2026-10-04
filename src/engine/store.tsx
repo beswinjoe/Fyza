@@ -1,0 +1,41 @@
+// App state store — generic CRUD over collections, persisted to localStorage.
+import { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
+import { EMPTY, buildSeed } from './seed';
+import { uid } from './format';
+import { AppState } from '../types/app';
+import { Action } from '../types/store';
+
+const KEY = 'fyza.v1';
+
+export const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
+
+function reducer(state: AppState, a: Action): AppState {
+  switch (a.type) {
+    case 'add': return { ...state, [a.col]: [...(state[a.col] as any[]), { id: uid(), ...a.item }] };
+    case 'update': return { ...state, [a.col]: (state[a.col] as any[]).map((x) => (x.id === a.id ? { ...x, ...a.patch } : x)) };
+    case 'remove': return { ...state, [a.col]: (state[a.col] as any[]).filter((x) => x.id !== a.id) };
+    case 'set': return { ...state, ...a.patch };
+    case 'batch': return a.ops.reduce(reducer, state);
+    case 'seed': return { ...buildSeed(a.opts), theme: state.theme };
+    case 'reset': return { ...structuredClone(EMPTY), theme: state.theme };
+    default: return state;
+  }
+}
+
+function load(): AppState {
+  try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s) return { ...structuredClone(EMPTY), ...s }; } catch { /* ignore */ }
+  return structuredClone(EMPTY);
+}
+
+export function StoreProvider({ children }: { children: ReactNode }) {
+  const [state, dispatch] = useReducer(reducer, undefined, load);
+  useEffect(() => { localStorage.setItem(KEY, JSON.stringify(state)); }, [state]);
+  useEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
+  return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
+}
+
+export const useStore = () => {
+  const ctx = useContext(Ctx);
+  if (!ctx) throw new Error('useStore must be used within a StoreProvider');
+  return ctx;
+};

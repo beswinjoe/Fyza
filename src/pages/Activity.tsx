@@ -3,8 +3,9 @@ import { Search, ArrowLeftRight, Trash2 } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { inr, fmtDate, relDay, today, mkey, addMonths, monthLabel } from '../engine/format';
 import { Icon, catIcon, Seg } from '../components/ui';
+import { Transaction } from '../types/finance';
 
-export function TxRow({ t, compact, onDelete }) {
+export function TxRow({ t, compact, onDelete }: { t: Transaction; compact?: boolean; onDelete?: (id: string) => void }) {
   const { state } = useStore();
   const acc = state.accounts.find((a) => a.id === (t.accountId || t.fromAccountId));
   const card = state.cards.find((c) => c.id === t.cardId);
@@ -15,7 +16,7 @@ export function TxRow({ t, compact, onDelete }) {
   const sign = isT ? (cross ? (t.toWorld === viewWorld ? '+' : '−') : '') : t.type === 'income' ? '+' : '−';
   return (
     <div className="li">
-      <Icon as={isT ? ArrowLeftRight : catIcon(t.category)} size="sm" tone={t.type === 'income' ? 'pos' : cross ? 'violet' : undefined} />
+      <Icon as={isT ? ArrowLeftRight : catIcon(t.category || '')} size="sm" tone={t.type === 'income' ? 'pos' : cross ? 'violet' : undefined} />
       <div className="meta">
         <div className="t">{t.note || t.category}</div>
         <div className="s">{compact ? relDay(t.date) : [isT ? (cross ? 'Transfer between worlds' : 'Transfer') : t.category, card?.name || acc?.name, trip && `✈ ${trip.destination}`, ...(t.tags || []).map((x) => '#' + x)].filter(Boolean).join(' · ')}</div>
@@ -34,7 +35,7 @@ export default function ActivityPage() {
   const [f, setF] = useState({ account: '', category: '', card: '', trip: '', month: '' });
   const months = [0, 1, 2, 3, 4].map((i) => mkey(addMonths(today(), -i)));
   const list = useMemo(() => state.transactions.filter((t) => {
-    if (scope !== 'all' && (t.world || 'personal') !== scope && !(t.type === 'transfer' && t.toWorld === scope)) return false;
+    if ((scope as string) !== 'all' && (t.world || 'personal') !== scope && !(t.type === 'transfer' && t.toWorld === scope)) return false;
     if (type !== 'all' && t.type !== type) return false;
     if (f.account && t.accountId !== f.account && t.fromAccountId !== f.account && t.toAccountId !== f.account) return false;
     if (f.category && t.category !== f.category) return false;
@@ -46,13 +47,13 @@ export default function ActivityPage() {
   }).sort((a, b) => b.date.localeCompare(a.date)), [state.transactions, scope, type, f, q]);
 
   const groups = useMemo(() => {
-    const g = new Map();
-    for (const t of list.slice(0, 300)) { if (!g.has(t.date)) g.set(t.date, []); g.get(t.date).push(t); }
+    const g = new Map<string, Transaction[]>();
+    for (const t of list.slice(0, 300)) { if (!g.has(t.date)) g.set(t.date, []); g.get(t.date)!.push(t); }
     return [...g.entries()];
   }, [list]);
   const totIn = list.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totOut = list.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const sel = (k, opts, label) => (
+  const sel = (k: keyof typeof f, opts: { value: string; label: string }[], label: string) => (
     <select className="select" style={{ width: 'auto', height: 32, fontSize: 13, borderRadius: 9 }} value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })}>
       <option value="">{label}</option>{opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
@@ -72,7 +73,7 @@ export default function ActivityPage() {
         <div className="row wrap" style={{ gap: 8, marginBottom: 6 }}>
           <div className="command" style={{ maxWidth: 280, height: 34, flex: '1 1 200px' }}><Search /><input style={{ background: 'none', border: 'none', outline: 'none', flex: 1 }} placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <Seg value={type} onChange={setType} options={[{ value: 'all', label: 'All' }, { value: 'expense', label: 'Out' }, { value: 'income', label: 'In' }, { value: 'transfer', label: 'Transfers' }]} />
-          {hasBiz && <Seg value={scope} onChange={setScope} options={[{ value: 'personal', label: 'Personal' }, { value: 'business', label: 'Business' }, { value: 'all', label: 'Both' }]} />}
+          {hasBiz && <Seg value={scope} onChange={setScope as any} options={[{ value: 'personal', label: 'Personal' }, { value: 'business', label: 'Business' }, { value: 'all', label: 'Both' }]} />}
         </div>
         <div className="row wrap" style={{ gap: 8, marginTop: 10 }}>
           {sel('month', months.map((m) => ({ value: m, label: monthLabel(m, true) })), 'Any month')}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, LineChart, Target, Compass, Sparkles, Building2, PanelLeftClose, PanelLeft, Moon, Sun, LogOut } from 'lucide-react';
+import { Home, LineChart, Compass, Sparkles, Building2, PanelLeftClose, PanelLeft, Moon, Sun, LogOut } from 'lucide-react';
 import { useStore } from './engine/store';
 import Onboarding from './components/Onboarding';
 import HomePage from './pages/Home';
@@ -15,13 +15,13 @@ export default function App() {
   const { state, dispatch } = useStore();
   const [page, setPage] = useState('home');
   const [cmd, setCmd] = useState(false);
-  const [add, setAdd] = useState(false);
-  const [item, setItem] = useState(null); // { type, id }
+  const [add, setAdd] = useState<string | boolean>(false);
+  const [item, setItem] = useState<{ type: string; id: string } | null>(null);
   const [toast, setToast] = useState('');
   const [sb, setSb] = useState(true);
 
   useEffect(() => {
-    const k = (e) => {
+    const k = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setCmd((c) => !c); }
       if (e.key === 'i' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setAdd('income'); }
       if (e.key === 'e' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setAdd('expense'); }
@@ -67,7 +67,7 @@ export default function App() {
             </div>
             {hasBiz && (
               <select className="select" style={{ height: 32, fontSize: 13, padding: '0 8px', background: 'var(--surface)', borderColor: 'transparent' }} 
-                value={state.world} onChange={(e) => dispatch({ type: 'set', patch: { world: e.target.value } })}>
+                value={state.world} onChange={(e) => dispatch({ type: 'set', patch: { world: e.target.value as any } })}>
                 <option value="personal">Personal World</option>
                 <option value="business">Business World</option>
               </select>
@@ -84,9 +84,9 @@ export default function App() {
           </button>
         </div>
 
-        {page === 'home' && <HomePage go={setPage} openAdd={setAdd} openPalette={() => setCmd(true)} openItem={(t, id) => setItem({ type: t, id })} />}
+        {page === 'home' && <HomePage go={setPage} openAdd={setAdd as any} openPalette={() => setCmd(true)} openItem={(t, id) => setItem({ type: t, id })} />}
         {page === 'activity' && <ActivityPage />}
-        {page === 'plans' && <PlansPage openAdd={setAdd} openItem={(t, id) => setItem({ type: t, id })} />}
+        {page === 'plans' && <PlansPage openAdd={setAdd as any} openItem={(t, id) => setItem({ type: t, id })} />}
         {page === 'business' && <BusinessPage />}
 
         <div className="tabbar">
