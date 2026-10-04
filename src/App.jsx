@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Home, LineChart, Target, Compass, Sparkles, Building2, PanelLeftClose, PanelLeft, Moon, Sun } from 'lucide-react';
+import { Home, LineChart, Target, Compass, Sparkles, Building2, PanelLeftClose, PanelLeft, Moon, Sun, LogOut } from 'lucide-react';
 import { useStore } from './engine/store';
 import Onboarding from './components/Onboarding';
 import HomePage from './pages/Home';
@@ -54,11 +54,16 @@ export default function App() {
             <Sparkles />Ask Fyza<span className="kbd">⌘K</span>
           </button>
           <div className="sidebar-foot" style={{ marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-            <div className="row between" style={{ padding: '0 12px' }}>
+            <div className="row between" style={{ padding: '0 12px', marginBottom: hasBiz ? 12 : 0 }}>
               <div className="faint" style={{ fontSize: 12 }}>{state.user.name}</div>
-              <button className="btn ghost icon sm" onClick={() => dispatch({ type: 'set', patch: { theme: state.theme === 'light' ? 'dark' : 'light' } })}>
-                {state.theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-              </button>
+              <div className="row" style={{ gap: 8 }}>
+                <button className="btn ghost icon sm" title="Toggle Theme" onClick={() => dispatch({ type: 'set', patch: { theme: state.theme === 'light' ? 'dark' : 'light' } })}>
+                  {state.theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+                </button>
+                <button className="btn ghost icon sm" title="Sign Out" onClick={() => { if (window.confirm('Are you sure you want to sign out? This will clear your current local session.')) { dispatch({ type: 'reset' }); } }}>
+                  <LogOut size={14} />
+                </button>
+              </div>
             </div>
             {hasBiz && (
               <select className="select" style={{ height: 32, fontSize: 13, padding: '0 8px', background: 'var(--surface)', borderColor: 'transparent' }} 

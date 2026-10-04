@@ -248,7 +248,10 @@ export default function HomePage({ go, openAdd, openPalette, openItem }) {
             <UpcomingCard state={state} world={world} />
             <div className="card card-pad">
               <div className="card-head"><div className="card-title">Recent</div><button className="link" onClick={() => go('activity')}>All activity <ArrowRight /></button></div>
-              <div className="list">{recent.map((t) => <TxRow key={t.id} t={t} compact />)}</div>
+              <div className="list">
+                {recent.length === 0 && <div className="empty">No recent activity.</div>}
+                {recent.map((t) => <TxRow key={t.id} t={t} compact />)}
+              </div>
             </div>
           </div>
         </div>

@@ -74,7 +74,7 @@ export function cardStats(state, card, now = today()) {
 
 /* ---------- Monthly summaries ---------- */
 export function monthTx(state, key, world) {
-  return state.transactions.filter((t) => W(t) === world && t.date.startsWith(key));
+  return state.transactions.filter((t) => (W(t) === world || (t.type === 'transfer' && (t.fromWorld === world || t.toWorld === world))) && t.date.startsWith(key));
 }
 
 export function monthSummary(state, key, world, uptoDay = 31) {
