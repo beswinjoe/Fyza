@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Home, LineChart, Compass, Building2, PanelLeftClose, PanelLeft, Moon, Sun, LogOut, Plus, Search } from 'lucide-react';
+import { Home, LineChart, Compass, Building2, PanelLeftClose, PanelLeft, LogOut, Plus, Search, Plane, Landmark, CreditCard, HandCoins, Repeat } from 'lucide-react';
 import { useStore } from './engine/store';
 import Onboarding from './components/Onboarding';
 import HomePage from './pages/Home';
 import ActivityPage from './pages/Activity';
 import PlansPage from './pages/Plans';
 import BusinessPage from './pages/Business';
+import ManagePage from './pages/Manage';
 import { Palette } from './components/AI';
 import { AddFlow } from './components/AddFlow';
 import { ItemView } from './components/ItemView';
 import { Toast, Button, Kbd, AIMark, cn } from './components/ui';
 import { World } from './types/finance';
 
-export type Page = 'home' | 'activity' | 'plans' | 'business';
+export type Page = 'home' | 'activity' | 'plans' | 'trips' | 'accounts' | 'cards' | 'loans' | 'subscriptions' | 'business';
 
 function Brand({ compact }: { compact?: boolean }) {
   return (
@@ -56,7 +57,6 @@ export default function App() {
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, []);
 
-  const toggleTheme = useCallback(() => dispatch({ type: 'set', patch: { theme: state.theme === 'light' ? 'dark' : 'light' } }), [dispatch, state.theme]);
   const openAdd = useCallback((t?: string) => setAdd(t || true), []);
   const openItem = useCallback((type: string, id: string) => setItem({ type, id }), []);
   const clearToast = useCallback(() => setToast(''), []);
@@ -64,12 +64,41 @@ export default function App() {
   if (!state.onboarded) return <Onboarding />;
 
   const hasBiz = state.profiles.includes('business') || state.profiles.includes('freelancer');
-  const NAV = [
+  
+  const NAV_GROUPS = [
+    {
+      label: 'Main',
+      items: [
+        { id: 'home' as Page, label: 'Home', icon: Home },
+        { id: 'activity' as Page, label: 'Activity', icon: LineChart },
+        { id: 'plans' as Page, label: 'Plans', icon: Compass },
+        ...(state.world === 'personal' ? [{ id: 'trips' as Page, label: 'Trips', icon: Plane }] : []),
+      ]
+    },
+    {
+      label: 'Manage',
+      items: [
+        { id: 'accounts' as Page, label: 'Accounts', icon: Landmark },
+        ...(state.world === 'personal' ? [{ id: 'cards' as Page, label: 'Cards', icon: CreditCard }] : []),
+        { id: 'loans' as Page, label: 'Loans', icon: HandCoins },
+        { id: 'subscriptions' as Page, label: 'Subscriptions', icon: Repeat },
+      ]
+    },
+    ...(hasBiz ? [{
+      label: 'Business',
+      items: [
+        { id: 'business' as Page, label: 'Business', icon: Building2 },
+      ]
+    }] : [])
+  ];
+
+  const MOBILE_NAV = [
     { id: 'home' as Page, label: 'Home', icon: Home },
     { id: 'activity' as Page, label: 'Activity', icon: LineChart },
     { id: 'plans' as Page, label: 'Plans', icon: Compass },
     ...(hasBiz ? [{ id: 'business' as Page, label: 'Business', icon: Building2 }] : []),
   ];
+
   const signOut = () => { if (window.confirm('Sign out? This clears your local Fyza workspace on this device.')) dispatch({ type: 'reset' }); };
   const initials = state.user.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || 'F';
 
@@ -77,48 +106,60 @@ export default function App() {
     <div className="flex min-h-full">
       {/* ---------- Sidebar (desktop) ---------- */}
       {sb && (
-        <aside className="sticky top-0 flex h-dvh w-[232px] shrink-0 flex-col border-r border-border bg-background px-3 pb-3 pt-4 max-lg:hidden" aria-label="Primary">
-          <div className="flex h-8 items-center justify-between px-2">
+        <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-surface px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
+          <div className="flex h-8 items-center justify-between px-2 mb-4">
             <Brand />
             <Button variant="ghost" size="sm" icon aria-label="Collapse sidebar" onClick={() => setSb(false)} className="-mr-1 text-foreground-subtle"><PanelLeftClose /></Button>
           </div>
 
           {hasBiz && (
-            <div className="mt-5 grid grid-cols-2 gap-0.5 rounded-lg border border-border bg-surface-muted p-0.5" role="tablist" aria-label="Workspace">
+            <div className="mb-6 grid grid-cols-2 gap-0.5 rounded-lg border border-border bg-surface-muted p-0.5" role="tablist" aria-label="Workspace">
               {(['personal', 'business'] as World[]).map((w) => (
                 <button key={w} role="tab" aria-selected={state.world === w} onClick={() => dispatch({ type: 'set', patch: { world: w } })}
-                  className={cn('h-7 rounded-md text-meta font-medium capitalize transition-all', state.world === w ? 'bg-surface text-foreground shadow-card ring-1 ring-border' : 'text-foreground-subtle hover:text-foreground')}>{w}</button>
+                  className={cn('h-7 rounded-md text-meta font-medium capitalize transition-all', state.world === w ? 'bg-background text-foreground shadow-card ring-1 ring-border' : 'text-foreground-subtle hover:text-foreground')}>{w}</button>
               ))}
             </div>
           )}
 
-          <nav className="mt-5 flex flex-col gap-px">
-            {NAV.map((n) => {
-              const on = page === n.id;
-              return (
-                <button key={n.id} onClick={() => setPage(n.id)} aria-current={on ? 'page' : undefined}
-                  className={cn('group relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium transition-colors',
-                    on ? 'bg-surface-muted text-foreground' : 'text-foreground-muted hover:bg-surface-muted/60 hover:text-foreground')}>
-                  {on && <span className="absolute -left-3 top-1.5 h-5 w-0.5 rounded-r-full bg-foreground" aria-hidden />}
-                  <n.icon className={cn('size-4 transition-colors', on ? 'text-foreground' : 'text-foreground-subtle group-hover:text-foreground-muted')} strokeWidth={1.75} />
-                  {n.label}
-                </button>
-              );
-            })}
+          <nav className="flex flex-1 flex-col gap-6 overflow-y-auto pb-4 [-webkit-overflow-scrolling:touch]">
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="flex flex-col gap-1">
+                <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{group.label}</div>
+                {group.items.map((n) => {
+                  const on = page === n.id;
+                  return (
+                    <button key={n.id} onClick={() => setPage(n.id)} aria-current={on ? 'page' : undefined}
+                      className={cn('group relative flex h-[34px] items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium transition-colors',
+                        on ? 'bg-surface-muted text-foreground' : 'text-foreground-muted hover:bg-surface-muted/60 hover:text-foreground')}>
+                      {on && <span className="absolute -left-3 top-[7px] h-5 w-[3px] rounded-r-full bg-foreground" aria-hidden />}
+                      <n.icon className={cn('size-4 transition-colors', on ? 'text-foreground' : 'text-foreground-subtle group-hover:text-foreground-muted')} strokeWidth={on ? 2 : 1.75} />
+                      {n.label}
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+            
+            <div className="flex flex-col gap-1">
+              <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">AI</div>
+              <button onClick={() => setCmd(true)} className="group relative flex h-[34px] items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium text-foreground-muted transition-colors hover:bg-surface-muted/60 hover:text-foreground">
+                <AIMark />Ask Fyza<Kbd className="ml-auto bg-transparent border-transparent text-foreground-subtle group-hover:text-foreground-muted shadow-none">⌘K</Kbd>
+              </button>
+            </div>
           </nav>
 
-          <div className="mt-auto flex flex-col gap-3">
-            <button onClick={() => setCmd(true)} className="group flex h-9 items-center gap-2.5 rounded-lg border border-border bg-surface px-2.5 text-[13px] font-medium text-foreground-muted shadow-card transition-colors hover:border-border-strong hover:text-foreground">
-              <AIMark />Ask Fyza<Kbd className="ml-auto">⌘K</Kbd>
-            </button>
-            <div className="flex items-center gap-2.5 border-t border-border px-1 pt-3">
-              <div className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-semibold text-foreground-muted ring-1 ring-border">{initials}</div>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13px] font-medium">{state.user.name || 'You'}</div>
-                <div className="truncate text-[11px] capitalize text-foreground-subtle">{state.profiles.join(' · ') || 'personal'}</div>
+          <div className="mt-auto flex flex-col pt-4">
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <button className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1.5 transition-colors hover:bg-surface-muted text-left">
+                <div className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-semibold text-foreground-muted ring-1 ring-border">{initials}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] font-medium text-foreground">{state.user.name || 'You'}</div>
+                  <div className="truncate text-[11px] capitalize text-foreground-subtle">{state.profiles.join(' · ') || 'personal'}</div>
+                </div>
+              </button>
+              <div className="flex shrink-0 items-center gap-0.5 pr-1">
+                <Button variant="ghost" size="sm" icon aria-label="Sign out" title="Sign out" onClick={signOut} className="size-7 text-foreground-subtle hover:text-foreground"><LogOut size={15} /></Button>
               </div>
-              <Button variant="ghost" size="sm" icon aria-label={state.theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'} title="Toggle theme" onClick={toggleTheme} className="size-7">{state.theme === 'light' ? <Moon /> : <Sun />}</Button>
-              <Button variant="ghost" size="sm" icon aria-label="Sign out" title="Sign out" onClick={signOut} className="size-7"><LogOut /></Button>
             </div>
           </div>
         </aside>
@@ -143,7 +184,6 @@ export default function App() {
                 ))}
               </div>
             )}
-            <Button variant="ghost" size="sm" icon aria-label="Toggle theme" onClick={toggleTheme} className="lg:hidden">{state.theme === 'light' ? <Moon /> : <Sun />}</Button>
             <Button variant="ghost" size="sm" icon aria-label="Sign out" onClick={signOut} className="lg:hidden max-[400px]:hidden"><LogOut /></Button>
             <Button variant="primary" size="sm" onClick={() => openAdd()} className="max-lg:hidden"><Plus />Add</Button>
           </div>
@@ -153,23 +193,25 @@ export default function App() {
           {page === 'home' && <HomePage go={(p) => setPage(p as Page)} openAdd={openAdd} openPalette={() => setCmd(true)} openItem={openItem} />}
           {page === 'activity' && <ActivityPage openAdd={openAdd} />}
           {page === 'plans' && <PlansPage openAdd={openAdd} openItem={openItem} />}
+          {page === 'trips' && <PlansPage openAdd={openAdd} openItem={openItem} initialTab="trips" />}
+          {['accounts', 'cards', 'loans', 'subscriptions'].includes(page) && <ManagePage tab={page} openAdd={openAdd} openItem={openItem} />}
           {page === 'business' && <BusinessPage openAdd={openAdd} />}
         </main>
 
         {/* ---------- Bottom navigation (mobile/tablet) ---------- */}
         <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
           <div className="mx-auto flex h-16 max-w-[560px] items-stretch px-2">
-            {NAV.slice(0, 2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
+            {MOBILE_NAV.slice(0, 2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
             <div className="flex flex-1 items-center justify-center">
               <button onClick={() => openAdd()} aria-label="Add" className="grid size-11 place-items-center rounded-full bg-inverse text-inverse-foreground shadow-pop transition-transform active:scale-95"><Plus className="size-5" /></button>
             </div>
-            {NAV.slice(2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
-            {NAV.length === 3 && <div className="flex-1" />}
+            {MOBILE_NAV.slice(2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
+            {MOBILE_NAV.length === 3 && <div className="flex-1" />}
           </div>
         </nav>
       </div>
 
-      {cmd && <Palette onClose={() => setCmd(false)} onNavigate={(p) => { setPage(p as Page); setCmd(false); }} onAdd={(t) => { setCmd(false); openAdd(t); }} onToggleTheme={toggleTheme} hasBiz={hasBiz} />}
+      {cmd && <Palette onClose={() => setCmd(false)} onNavigate={(p) => { setPage(p as Page); setCmd(false); }} onAdd={(t) => { setCmd(false); openAdd(t); }} hasBiz={hasBiz} />}
       {add !== false && <AddFlow initial={typeof add === 'string' ? add : null} onClose={() => setAdd(false)} onDone={setToast} />}
       {item && <ItemView type={item.type} id={item.id} onClose={() => setItem(null)} />}
       {toast && <Toast msg={toast} onDone={clearToast} />}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowUp, CornerDownLeft, Check, Undo2, Home, LineChart, Compass, Building2, ArrowUpRight, ArrowDownLeft, Landmark, Target, Plane, SunMoon, MessageSquare, ArrowLeft } from 'lucide-react';
+import { ArrowUp, CornerDownLeft, Check, Undo2, Home, LineChart, Compass, Building2, ArrowUpRight, ArrowDownLeft, Landmark, Target, Plane, MessageSquare, ArrowLeft } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { interpret, SUGGESTIONS } from '../engine/ai';
 import { inr } from '../engine/format';
@@ -100,7 +100,7 @@ export function AICard({ r, compact }: { r: AIResult; compact?: boolean }) {
 
 type Cmd = { id: string; label: string; group: 'Ask Fyza' | 'Suggestions' | 'Add' | 'Navigate' | 'Preferences'; icon: React.ElementType; run: () => void; hint?: string };
 
-export function Palette({ onClose, onNavigate, onAdd, onToggleTheme, hasBiz }: { onClose: () => void; onNavigate: (p: string) => void; onAdd: (t: string) => void; onToggleTheme: () => void; hasBiz?: boolean }) {
+export function Palette({ onClose, onNavigate, onAdd, hasBiz }: { onClose: () => void; onNavigate: (p: string) => void; onAdd: (t: string) => void; hasBiz?: boolean }) {
   const { state } = useStore();
   const ask = useAI();
   const [q, setQ] = useState('');
@@ -134,7 +134,6 @@ export function Palette({ onClose, onNavigate, onAdd, onToggleTheme, hasBiz }: {
       { id: 'n-act', label: 'Go to Activity', group: 'Navigate', icon: LineChart, run: () => onNavigate('activity') },
       { id: 'n-plan', label: 'Go to Plans', group: 'Navigate', icon: Compass, run: () => onNavigate('plans') },
       ...(hasBiz ? [{ id: 'n-biz', label: 'Go to Business', group: 'Navigate' as const, icon: Building2, run: () => onNavigate('business') }] : []),
-      { id: 'p-theme', label: `Switch to ${state.theme === 'light' ? 'dark' : 'light'} mode`, group: 'Preferences', icon: SunMoon, run: onToggleTheme },
     ];
     const t = q.trim().toLowerCase();
     if (!t) return base;
@@ -142,7 +141,7 @@ export function Palette({ onClose, onNavigate, onAdd, onToggleTheme, hasBiz }: {
     const sMatches = base.filter((c) => c.group === 'Suggestions' && c.label.toLowerCase().includes(t));
     return [{ id: 'ask', label: q.trim(), group: 'Ask Fyza', icon: MessageSquare, run: () => run(q) }, ...sMatches, ...matches];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, sugg, hasBiz, state.theme]);
+  }, [q, sugg, hasBiz]);
 
   useEffect(() => { setSel(0); }, [q]);
   useEffect(() => { listRef.current?.querySelector(`[data-idx="${sel}"]`)?.scrollIntoView({ block: 'nearest' }); }, [sel]);

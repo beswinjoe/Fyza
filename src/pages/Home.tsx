@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins, Wallet } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { today, mkey, inr, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
-import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, studentCycle, accountBalance, cardStats, loanStats, inWorld, tripDays, netWorth } from '../engine/finance';
-import { Money, Bar, Icon, AreaChart, BarsChart, Seg, Ring, catIcon, ACC_ICON, Card, SectionHeader, EmptyState, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
+import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
+import { Money, Bar, Icon, AreaChart, BarsChart, Seg, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
 import { TxRow } from './Activity';
 import { BusinessHero } from './Business';
 import { AppState } from '../types/app';
-import { World } from '../types/finance';
+import { World, Goal, Account, Card as CardType, Loan } from '../types/finance';
 
 type OpenItem = (t: string, id: string) => void;
 
@@ -77,7 +77,7 @@ function PersonalHero({ state }: { state: AppState }) {
   const nw = netWorth(state);
   const flow = s.net + s.transferIn;
   return (
-    <HeroShell eyebrow="Available across accounts" amount={Math.floor(avail)}
+    <HeroShell eyebrow="Available trackable money" amount={Math.floor(avail)}
       badge={prev.expense > 0 && <Badge tone={d <= 0 ? 'positive' : 'negative'}>{d <= 0 ? '↓' : '↑'} Spending {Math.abs(Math.round(d * 100))}% vs last month</Badge>}
       stats={<>
         <Stat label="Income" value={inr(s.income + s.transferIn)} />
@@ -145,98 +145,6 @@ export function UpcomingCard({ state, world }: { state: AppState; world: World }
   );
 }
 
-export function GoalsCard({ state, onOpen, onAdd }: { state: AppState; onOpen: OpenItem; onAdd: () => void }) {
-  return (
-    <Card className="p-5">
-      <SectionHeader title="Goals" action={state.goals.length > 0 && <Button variant="ghost" size="sm" icon aria-label="Create goal" onClick={onAdd}><Plus /></Button>} />
-      {state.goals.length === 0 ? (
-        <EmptyState size="sm" icon={Target} title="No goals yet" description="Create a goal and Fyza will track the path." primaryAction={{ label: 'Create goal', onClick: onAdd }} />
-      ) : state.goals.slice(0, 4).map((g) => {
-        const st = goalStats(g);
-        return (
-          <Row key={g.id} onClick={() => onOpen('goal', g.id)}>
-            <Ring value={st.progress} size={34} stroke={3.5} color={st.onTrack ? 'var(--accent)' : 'var(--warning)'} />
-            <RowMeta title={g.name} sub={<>{inr(g.current, { compact: true })} of {inr(g.target, { compact: true })} · {st.eta ? `by ${monthLabel(st.eta, true)}` : 'set a monthly amount'}</>} />
-            <span className="num text-meta text-foreground-subtle">{Math.round(st.progress * 100)}%</span>
-          </Row>
-        );
-      })}
-    </Card>
-  );
-}
-
-export function TripCard({ state, onOpen }: { state: AppState; onOpen: OpenItem }) {
-  const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
-  if (!t) return null;
-  const fc = forecast(state, t.world || 'personal', 12);
-  const row = fc.find((r) => r.key === t.start.slice(0, 7));
-  const total = tripTotal(t);
-  return (
-    <Card as="button" className="w-full p-5 text-left transition-colors hover:border-border-strong" onClick={() => onOpen('trip', t.id)}>
-      <div className="flex items-center justify-between"><Eyebrow>Next trip · in {daysBetween(today(), parseDate(t.start))} days</Eyebrow><Plane className="size-4 text-foreground-subtle" strokeWidth={1.75} /></div>
-      <div className="mt-2 font-display text-[22px] font-semibold tracking-[-0.02em]">{t.destination}</div>
-      <div className="text-meta text-foreground-subtle">{fmtDate(t.start)} – {fmtDate(t.end)} · {tripDays(t)} days</div>
-      {row && (
-        <div className="mt-4 grid grid-cols-[1fr_auto] gap-y-1.5 text-[13px]">
-          <span className="text-foreground-muted">Normal {row.label} spending</span><span className="num">{inr(row.expense - total)}</span>
-          <span className="text-foreground-muted">{t.destination} trip</span><span className="num">+{inr(total)}</span>
-          <span className="border-t border-border pt-1.5 font-medium">{row.label} projected</span><span className="num border-t border-border pt-1.5 font-semibold">{inr(row.expense)}</span>
-        </div>
-      )}
-    </Card>
-  );
-}
-
-export function MoneyCard({ state, world, onOpen, onAdd }: { state: AppState; world: World; onOpen: OpenItem; onAdd: (t: string) => void }) {
-  const [tab, setTab] = useState('accounts');
-  const accs = state.accounts.filter(inWorld(world));
-  const loans = state.loans.filter(inWorld(world));
-  const addType = tab === 'accounts' ? 'account' : tab === 'cards' ? 'card' : 'loan';
-  const empty = (tab === 'accounts' && !accs.length) || (tab === 'cards' && !state.cards.length) || (tab === 'loans' && !loans.length);
-  const emptyCopy: Record<string, [React.ElementType, string, string]> = {
-    accounts: [Landmark, 'No accounts yet', 'Add cash, bank, savings, or wallet tracking later.'],
-    cards: [CreditCard, 'No cards yet', 'Add a credit card to track utilisation and due dates.'],
-    loans: [HandCoins, 'No loans', 'Add a loan and Fyza will calculate EMIs and payoff for you.'],
-  };
-  const [EI, et, ed] = emptyCopy[tab];
-  return (
-    <Card className="p-5">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <Seg size="sm" label="Holdings" value={tab} onChange={setTab} options={[{ value: 'accounts', label: 'Accounts' }, ...(world === 'personal' ? [{ value: 'cards', label: 'Cards' }] : []), { value: 'loans', label: 'Loans' }]} />
-        {!empty && <Button variant="ghost" size="sm" icon aria-label={`Add ${addType}`} onClick={() => onAdd(addType)}><Plus /></Button>}
-      </div>
-      {empty && <EmptyState size="sm" icon={EI} title={et} description={ed} primaryAction={{ label: `Add ${addType}`, onClick: () => onAdd(addType), icon: Plus }} />}
-      {tab === 'accounts' && accs.map((a) => (
-        <Row key={a.id} onClick={() => onOpen('account', a.id)}>
-          <Icon as={ACC_ICON[a.type] || ACC_ICON.other} size="sm" />
-          <RowMeta title={a.name} sub={<span className="capitalize">{a.institution || a.type}</span>} />
-          <Money v={accountBalance(state, a)} className="text-body font-medium" />
-        </Row>
-      ))}
-      {tab === 'cards' && state.cards.map((c) => {
-        const s = cardStats(state, c);
-        return (
-          <Row key={c.id} onClick={() => onOpen('card', c.id)}>
-            <Icon as={CreditCard} size="sm" />
-            <RowMeta title={<>{c.name} {c.last4 && <span className="text-foreground-subtle">•• {c.last4}</span>}</>} sub={c.kind === 'credit' ? `${Math.round(s.utilization * 100)}% used · due ${fmtDate(s.dueDate)}` : 'Debit'} />
-            <Money v={s.spent} className="text-body font-medium" />
-          </Row>
-        );
-      })}
-      {tab === 'loans' && loans.map((l) => {
-        const s = loanStats(l);
-        return (
-          <Row key={l.id} onClick={() => onOpen('loan', l.id)}>
-            <Icon as={HandCoins} size="sm" />
-            <RowMeta title={l.name} sub={`${inr(s.emi)}/mo · ${s.remainingMonths} months left`} />
-            <Money v={s.balance} compact className="text-body font-medium" />
-          </Row>
-        );
-      })}
-    </Card>
-  );
-}
-
 /* ---------- Empty home ---------- */
 function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd: (t?: string) => void; openPalette: () => void; go: (p: string) => void }) {
   const biz = world === 'business';
@@ -280,6 +188,129 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
   );
 }
 
+/* ---------- Adaptive Sidebar ---------- */
+function RightSidebar({ state, world, openItem, openAdd, openPalette }: any) {
+  const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
+  const accs = state.accounts.filter(inWorld(world));
+  const loans = state.loans.filter(inWorld(world));
+  const cards = world === 'personal' ? state.cards : [];
+  const holdingsEmpty = !accs.length && !loans.length && !cards.length;
+
+  return (
+    <div className="flex min-w-0 flex-col gap-8">
+      <Insight items={insights(state, world)} onAsk={openPalette} />
+      
+      {world === 'personal' && (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Planning & Travel</h3>
+          
+          {/* Trips */}
+          {!t ? (
+            <Row className="!px-0" onClick={() => openAdd('trip')}>
+              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Plane className="size-4 text-foreground-muted" /></div>
+              <RowMeta title="Trips & Travel" sub="No upcoming trips" />
+              <LinkButton>Plan <ArrowRight /></LinkButton>
+            </Row>
+          ) : (
+            <div className="group cursor-pointer rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong" onClick={() => openItem('trip', t.id)}>
+              <div className="flex items-center justify-between"><div className="flex items-center gap-2 font-medium text-foreground"><Plane className="size-4 text-foreground-muted" /> {t.destination}</div><Badge>{daysBetween(today(), parseDate(t.start))} days</Badge></div>
+              <div className="mt-3 flex items-center justify-between text-[13px]">
+                <div className="text-foreground-subtle">Budget</div><div className="num font-medium">{inr(tripTotal(t), { compact: true })}</div>
+              </div>
+              <Bar value={tripSpent(state, t) / Math.max(1, tripTotal(t))} className="my-2" />
+              <div className="flex items-center justify-between text-[13px]">
+                <div className="text-foreground-subtle">Remaining</div><div className="num font-medium text-foreground">{inr(Math.max(0, tripTotal(t) - tripSpent(state, t)), { compact: true })}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Goals */}
+          {state.goals.length === 0 ? (
+            <Row className="!px-0" onClick={() => openAdd('goal')}>
+              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Target className="size-4 text-foreground-muted" /></div>
+              <RowMeta title="Savings Goals" sub="No active goals" />
+              <LinkButton>Plan <ArrowRight /></LinkButton>
+            </Row>
+          ) : (
+            <div className="mt-2 flex flex-col gap-1">
+              {state.goals.slice(0, 3).map((g: Goal) => {
+                const st = goalStats(g);
+                return (
+                  <Row key={g.id} className="!px-0 group" onClick={() => openItem('goal', g.id)}>
+                    <Ring value={st.progress} size={34} stroke={3.5} color={st.onTrack ? 'var(--accent)' : 'var(--warning)'} />
+                    <RowMeta title={g.name} sub={<>{inr(g.current, { compact: true })} of {inr(g.target, { compact: true })}</>} />
+                    <span className="num text-meta text-foreground-subtle transition-colors group-hover:text-foreground">{Math.round(st.progress * 100)}%</span>
+                  </Row>
+                );
+              })}
+              <Row className="!px-0 mt-1" onClick={() => openAdd('goal')}>
+                <div className="grid size-9 place-items-center rounded-lg border border-dashed border-border bg-transparent"><Plus className="size-4 text-foreground-muted" /></div>
+                <RowMeta title="Add another goal" />
+              </Row>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        <h3 className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Holdings</h3>
+        
+        {holdingsEmpty ? (
+          <div className="flex flex-col gap-1">
+            <Row className="!px-0" onClick={() => openAdd('account')}>
+              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Landmark className="size-4 text-foreground-muted" /></div>
+              <RowMeta title="Accounts" sub="None connected" />
+              <LinkButton>Add <ArrowRight /></LinkButton>
+            </Row>
+            {world === 'personal' && (
+              <Row className="!px-0" onClick={() => openAdd('card')}>
+                <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><CreditCard className="size-4 text-foreground-muted" /></div>
+                <RowMeta title="Credit Cards" sub="Track utilization" />
+                <LinkButton>Add <ArrowRight /></LinkButton>
+              </Row>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {accs.map((a: Account) => (
+              <Row key={a.id} className="!px-0" onClick={() => openItem('account', a.id)}>
+                <Icon as={ACC_ICON[a.type] || ACC_ICON.other} size="sm" />
+                <RowMeta title={a.name} sub={<span className="capitalize">{a.institution || a.type}</span>} />
+                <Money v={accountBalance(state, a)} className="text-body font-medium" />
+              </Row>
+            ))}
+            {cards.map((c: CardType) => {
+              const s = cardStats(state, c);
+              return (
+                <Row key={c.id} className="!px-0" onClick={() => openItem('card', c.id)}>
+                  <Icon as={CreditCard} size="sm" />
+                  <RowMeta title={<>{c.name} {c.last4 && <span className="text-foreground-subtle">•• {c.last4}</span>}</>} sub={c.kind === 'credit' ? `${Math.round(s.utilization * 100)}% used` : 'Debit'} />
+                  <Money v={s.spent} className="text-body font-medium" />
+                </Row>
+              );
+            })}
+            {loans.map((l: Loan) => {
+              const s = loanStats(l);
+              return (
+                <Row key={l.id} className="!px-0" onClick={() => openItem('loan', l.id)}>
+                  <Icon as={HandCoins} size="sm" />
+                  <RowMeta title={l.name} sub={`${inr(s.emi)}/mo`} />
+                  <Money v={s.balance} compact className="text-body font-medium" />
+                </Row>
+              );
+            })}
+            
+            <div className="mt-2 flex items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={() => openAdd('account')}><Plus /> Account</Button>
+              {world === 'personal' && <Button variant="ghost" size="sm" onClick={() => openAdd('card')}><Plus /> Card</Button>}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (p: string) => void; openAdd: (t?: string) => void; openPalette: () => void; openItem: OpenItem }) {
   const { state } = useStore();
   const world = state.world;
@@ -297,26 +328,21 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
       </header>
 
       {isEmpty ? <EmptyHome world={world} openAdd={openAdd} openPalette={openPalette} go={go} /> : (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px] stagger">
-          <div className="flex min-w-0 flex-col gap-5">
+        <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_320px] stagger">
+          <div className="flex min-w-0 flex-col gap-8">
             {world === 'business' ? <BusinessHero state={state} /> : student ? <StudentHero state={state} /> : <PersonalHero state={state} />}
             <FlowCard state={state} world={world} />
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-8 md:grid-cols-2">
               <UpcomingCard state={state} world={world} />
-              <Card className="p-5">
-                <SectionHeader title="Recent" action={recent.length > 0 && <LinkButton onClick={() => go('activity')}>All activity <ArrowRight /></LinkButton>} />
+              <div>
+                <SectionHeader title="Recent activity" action={recent.length > 0 && <LinkButton onClick={() => go('activity')}>All <ArrowRight /></LinkButton>} />
                 {recent.length === 0
-                  ? <EmptyState size="sm" icon={ReceiptText} title="No activity yet" description="Your transactions will appear here." primaryAction={{ label: 'Add transaction', onClick: () => openAdd('expense') }} />
-                  : recent.map((t) => <TxRow key={t.id} t={t} compact />)}
-              </Card>
+                  ? <p className="py-4 text-[13px] text-foreground-subtle">Your transactions will appear here.</p>
+                  : <div className="mt-2 flex flex-col gap-1">{recent.map((t) => <TxRow key={t.id} t={t} compact />)}</div>}
+              </div>
             </div>
           </div>
-          <div className="flex min-w-0 flex-col gap-5">
-            <Insight items={insights(state, world)} onAsk={openPalette} />
-            {world === 'personal' && <TripCard state={state} onOpen={openItem} />}
-            {world === 'personal' && <GoalsCard state={state} onOpen={openItem} onAdd={() => openAdd('goal')} />}
-            <MoneyCard state={state} world={world} onOpen={openItem} onAdd={openAdd} />
-          </div>
+          <RightSidebar state={state} world={world} openItem={openItem} openAdd={openAdd} openPalette={openPalette} />
         </div>
       )}
     </div>

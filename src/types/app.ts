@@ -6,7 +6,6 @@ export interface AppState {
   user: { name: string };
   profiles: Profile[];
   world: World;
-  theme: 'light' | 'dark';
   accounts: Account[];
   cards: Card[];
   loans: Loan[];

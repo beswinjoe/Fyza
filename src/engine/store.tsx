@@ -18,8 +18,8 @@ function reducer(state: AppState, a: Action): AppState {
     case 'remove': return { ...state, [a.col]: (state[a.col] as any[]).filter((x) => x.id !== a.id) };
     case 'set': return { ...state, ...a.patch };
     case 'batch': return a.ops.reduce(reducer, state);
-    case 'seed': return { ...buildSeed(a.opts), theme: state.theme };
-    case 'reset': return { ...structuredClone(EMPTY), theme: state.theme };
+    case 'seed': return buildSeed(a.opts);
+    case 'reset': return structuredClone(EMPTY);
     default: return state;
   }
 }
@@ -32,7 +32,6 @@ function load(): AppState {
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, load);
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(state)); }, [state]);
-  useEffect(() => { document.documentElement.dataset.theme = state.theme; }, [state.theme]);
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
 }
 

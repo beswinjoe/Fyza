@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Plane, Sparkles, Trash2, AlertTriangle, Compass } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { inr, fmtDate, monthLabel } from '../engine/format';
@@ -243,10 +243,16 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
   );
 }
 
-export default function PlansPage({ openAdd, openItem }: { openAdd: (t: string) => void; openItem: (t: string, id: string) => void }) {
+export default function PlansPage({ openAdd, openItem, initialTab = 'forecast' }: { openAdd: (t: string) => void; openItem: (t: string, id: string) => void; initialTab?: string }) {
   const { state, dispatch } = useStore();
-  const [tab, setTab] = useState('forecast');
+  const [tab, setTab] = useState(initialTab);
   const world = state.world as string;
+
+  // Reset tab if world changes or initialTab changes
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
   return (
     <div className="mx-auto max-w-[1040px] px-4 py-8 pb-24 sm:px-6 lg:px-8">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4 max-md:mb-6">

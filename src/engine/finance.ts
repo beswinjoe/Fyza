@@ -56,8 +56,21 @@ export function accountBalance(state: AppState, acc: Account) {
   return b;
 }
 
-export const available = (state: AppState, world: World) =>
-  state.accounts.filter(inWorld(world)).reduce((s, a) => s + accountBalance(state, a), 0);
+export const available = (state: AppState, world: World) => {
+  const accountsTotal = state.accounts.filter(inWorld(world)).reduce((s, a) => s + accountBalance(state, a), 0);
+  
+  let untrackedCash = 0;
+  for (const t of state.transactions) {
+    if (t.type === 'transfer') {
+      if (!t.toAccountId && (t.toWorld || W(t)) === world) untrackedCash += t.amount;
+      if (!t.fromAccountId && (t.fromWorld || W(t)) === world) untrackedCash -= t.amount;
+    } else if (W(t) === world && !t.accountId && !(t.cardId && isCredit(state, t.cardId))) {
+      untrackedCash += t.type === 'income' ? t.amount : -t.amount;
+    }
+  }
+  
+  return accountsTotal + untrackedCash;
+};
 
 export function cardStats(state: AppState, card: Card, now = today()) {
   const sd = +(card.statementDay || 1);

@@ -7,37 +7,9 @@
    runtime via [data-theme]. Tailwind tokens reference them inline.
 ------------------------------------------------------------------- */
 
-@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+@custom-variant dark (@media (prefers-color-scheme: dark));
 
-:root,
-[data-theme='dark'] {
-  --background: #0a0a0b;
-  --surface: #111113;
-  --surface-muted: #161618;
-  --surface-elevated: #18181b;
-  --foreground: #ececee;
-  --foreground-muted: #a0a0a8;
-  --foreground-subtle: #68686f;
-  --border: rgb(255 255 255 / 0.065);
-  --border-strong: rgb(255 255 255 / 0.12);
-  --accent: #c6ec7c;
-  --accent-soft: rgb(198 236 124 / 0.09);
-  --accent-foreground: #11150a;
-  --inverse: #f4f4f5;
-  --inverse-foreground: #0a0a0b;
-  --positive: #5ad49b;
-  --negative: #f07f7f;
-  --warning: #e8bf72;
-  --chart-1: #c6ec7c;
-  --chart-2: #8f8f98;
-  --chart-grid: rgb(255 255 255 / 0.05);
-  --overlay: rgb(0 0 0 / 0.56);
-  --shadow-card-v: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
-  --shadow-pop-v: 0 0 0 1px rgb(255 255 255 / 0.07), 0 24px 64px -16px rgb(0 0 0 / 0.7);
-  color-scheme: dark;
-}
-
-[data-theme='light'] {
+:root {
   --background: #f7f7f6;
   --surface: #ffffff;
   --surface-muted: #f3f3f1;
@@ -62,6 +34,35 @@
   --shadow-card-v: 0 1px 2px rgb(15 15 25 / 0.04);
   --shadow-pop-v: 0 0 0 1px rgb(15 15 25 / 0.06), 0 24px 64px -16px rgb(15 15 25 / 0.22);
   color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0b;
+    --surface: #111113;
+    --surface-muted: #161618;
+    --surface-elevated: #18181b;
+    --foreground: #ececee;
+    --foreground-muted: #a0a0a8;
+    --foreground-subtle: #68686f;
+    --border: rgb(255 255 255 / 0.065);
+    --border-strong: rgb(255 255 255 / 0.12);
+    --accent: #c6ec7c;
+    --accent-soft: rgb(198 236 124 / 0.09);
+    --accent-foreground: #11150a;
+    --inverse: #f4f4f5;
+    --inverse-foreground: #0a0a0b;
+    --positive: #5ad49b;
+    --negative: #f07f7f;
+    --warning: #e8bf72;
+    --chart-1: #c6ec7c;
+    --chart-2: #8f8f98;
+    --chart-grid: rgb(255 255 255 / 0.05);
+    --overlay: rgb(0 0 0 / 0.56);
+    --shadow-card-v: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
+    --shadow-pop-v: 0 0 0 1px rgb(255 255 255 / 0.07), 0 24px 64px -16px rgb(0 0 0 / 0.7);
+    color-scheme: dark;
+  }
 }
 
 @theme inline {
@@ -159,7 +160,9 @@
   input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type='number'] { -moz-appearance: textfield; }
   input[type='date']::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
-  [data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
+  @media (prefers-color-scheme: dark) {
+    input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
+  }
   * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
   svg text { fill: var(--foreground-subtle); font-size: 11px; font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
 }
