@@ -150,7 +150,7 @@ export function GoalsCard({ state, onOpen, onAdd }: { state: AppState; onOpen: O
     <Card className="p-5">
       <SectionHeader title="Goals" action={state.goals.length > 0 && <Button variant="ghost" size="sm" icon aria-label="Create goal" onClick={onAdd}><Plus /></Button>} />
       {state.goals.length === 0 ? (
-        <EmptyState size="sm" icon={Target} title="No goals yet" description="Create a goal and Fyza will help you understand how to reach it." primaryAction={{ label: 'Create goal', onClick: onAdd }} />
+        <EmptyState size="sm" icon={Target} title="No goals yet" description="Create a goal and Fyza will track the path." primaryAction={{ label: 'Create goal', onClick: onAdd }} />
       ) : state.goals.slice(0, 4).map((g) => {
         const st = goalStats(g);
         return (
@@ -194,7 +194,7 @@ export function MoneyCard({ state, world, onOpen, onAdd }: { state: AppState; wo
   const addType = tab === 'accounts' ? 'account' : tab === 'cards' ? 'card' : 'loan';
   const empty = (tab === 'accounts' && !accs.length) || (tab === 'cards' && !state.cards.length) || (tab === 'loans' && !loans.length);
   const emptyCopy: Record<string, [React.ElementType, string, string]> = {
-    accounts: [Landmark, 'No accounts yet', 'Add your bank, savings, cash, or wallet accounts to start tracking your money.'],
+    accounts: [Landmark, 'No accounts yet', 'Add cash, bank, savings, or wallet tracking later.'],
     cards: [CreditCard, 'No cards yet', 'Add a credit card to track utilisation and due dates.'],
     loans: [HandCoins, 'No loans', 'Add a loan and Fyza will calculate EMIs and payoff for you.'],
   };
@@ -241,10 +241,10 @@ export function MoneyCard({ state, world, onOpen, onAdd }: { state: AppState; wo
 function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd: (t?: string) => void; openPalette: () => void; go: (p: string) => void }) {
   const biz = world === 'business';
   const sections = [
-    { icon: Landmark, title: 'Accounts', empty: 'No accounts yet', d: biz ? 'Add your business bank and cash accounts.' : 'Add your bank, savings, cash, or wallet accounts to start tracking your money.', cta: 'Add account', on: () => openAdd('account') },
-    { icon: ReceiptText, title: 'Activity', empty: 'No activity yet', d: 'Your income, spending, transfers, and payments will appear here.', cta: 'Add transaction', on: () => openAdd('expense') },
-    ...(biz ? [] : [{ icon: Target, title: 'Goals', empty: 'No goals yet', d: 'Create a goal and Fyza will help you understand how to reach it.', cta: 'Create goal', on: () => openAdd('goal') }]),
-    { icon: Compass, title: 'Plans', empty: 'No forecast yet', d: 'Your financial forecast will appear once you add income and expenses.', cta: 'Add recurring income', on: () => openAdd('recurring'), secondary: { label: 'Open Plans', on: () => go('plans') } },
+    { icon: Landmark, title: 'Accounts & money', empty: 'No accounts yet', d: 'Add cash, bank, savings, or wallet tracking later.', cta: 'Add account', on: () => openAdd('account') },
+    { icon: ReceiptText, title: 'Activity', empty: 'No activity yet', d: 'Add your first income or expense.', cta: 'Add transaction', on: () => openAdd('expense') },
+    ...(biz ? [] : [{ icon: Target, title: 'Goals', empty: 'No goals yet', d: 'Create a goal and Fyza will track the path.', cta: 'Create goal', on: () => openAdd('goal') }]),
+    { icon: Compass, title: 'Plans', empty: 'No forecast yet', d: 'Add income and spending and Fyza will project your future.', cta: 'Add recurring income', on: () => openAdd('recurring'), secondary: { label: 'Open Plans', on: () => go('plans') } },
   ];
   return (
     <div className="flex flex-col gap-5 stagger">
@@ -252,11 +252,15 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
         <div className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full bg-accent-soft blur-3xl" aria-hidden />
         <div className="relative max-w-[520px]">
           <div className="mb-5 grid size-11 place-items-center rounded-xl border border-border bg-surface-muted shadow-card"><Wallet className="size-5 text-foreground-muted" strokeWidth={1.5} /></div>
-          <h2 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] max-md:text-[24px]">{biz ? 'Your business picture starts here.' : 'Your financial picture starts here.'}</h2>
-          <p className="mt-3 text-[14.5px] leading-6 text-foreground-muted">Once you add your accounts, Fyza will build your financial picture automatically — balances, cash flow, and where you're heading.</p>
+          <h2 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] max-md:text-[24px]">Start with what you know.</h2>
+          <p className="mt-3 text-[14.5px] leading-6 text-foreground-muted">Add income, spending, savings, or anything else manually. Fyza will build your financial picture as you go.</p>
           <div className="mt-7 flex flex-wrap items-center gap-2">
-            <Button variant="primary" size="lg" onClick={() => openAdd('account')}><Plus />Add your first account</Button>
-            <Button variant="ghost" size="lg" onClick={openPalette}><AIMark className="size-4" />Tell Fyza instead</Button>
+            <Button variant="primary" size="lg" onClick={() => openAdd('income')}><Plus />Add income</Button>
+            <Button variant="primary" size="lg" onClick={() => openAdd('expense')}><Plus />Add expense</Button>
+            <Button variant="ghost" size="lg" onClick={openPalette}><AIMark className="size-4" />Ask Fyza</Button>
+          </div>
+          <div className="mt-5">
+            <Button variant="ghost" size="sm" onClick={() => openAdd('account')}>Add an account (optional)</Button>
           </div>
         </div>
       </Card>

@@ -47,9 +47,9 @@ export default function BusinessPage({ openAdd }: { openAdd: (t?: string) => voi
         <PageHeader eyebrow="Business" title="Workspace" />
         <Card>
           <EmptyState size="lg" icon={Building2} title="No business data yet"
-            description="Add your business bank account to see revenue, expenses, profit, cash, and runway — kept separate from your personal money."
-            primaryAction={{ label: 'Add business account', onClick: () => toBiz('account'), icon: Plus }}
-            secondaryAction={{ label: 'Record revenue', onClick: () => toBiz('income') }} />
+            description="Add revenue or expenses to start seeing profit, cash, and runway — kept separate from your personal money."
+            primaryAction={{ label: 'Record revenue', onClick: () => toBiz('income'), icon: Plus }}
+            secondaryAction={{ label: 'Record expense', onClick: () => toBiz('expense') }} />
         </Card>
         <div className="mt-5 grid gap-5 md:grid-cols-3">
           {[['Profit & margin', 'Monthly profit and margin, calculated from your business activity.'], ['Cash & runway', 'How long your cash lasts at your current burn rate.'], ['Invoices', 'What you’re owed and what you owe, in one place.']].map(([t, d]) => (

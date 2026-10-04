@@ -35,9 +35,23 @@ export default function App() {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key === 'k') { e.preventDefault(); setCmd((c) => !c); }
-      if (e.key === 'i') { e.preventDefault(); setAdd('income'); }
-      if (e.key === 'e') { e.preventDefault(); setAdd('expense'); }
+      const el = document.activeElement;
+      const inInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable);
+      
+      if (e.key === 'k') { 
+        e.preventDefault(); 
+        setCmd((c) => !c); 
+      }
+      if (e.key === 'i') { 
+        if (inInput) return;
+        e.preventDefault(); 
+        setAdd('income'); 
+      }
+      if (e.key === 'e') { 
+        if (inInput) return;
+        e.preventDefault(); 
+        setAdd('expense'); 
+      }
     };
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
   }, []);

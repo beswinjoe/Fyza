@@ -309,7 +309,7 @@ export function MoneyInput({ value, onChange, autoFocus, id, invalid, onBlur, pl
 function useDialog(onClose: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
-  close.current = onClose;
+  useEffect(() => { close.current = onClose; }, [onClose]);
   useEffect(() => {
     const prevFocus = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
@@ -440,7 +440,7 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
   return (
     <div ref={ref} className="relative select-none" onMouseLeave={() => setHover(null)}
       onMouseMove={(e) => { if (!ref.current) return; const r = ref.current.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left - pad.l) / (w - pad.l - pad.r)) * (n - 1)); setHover(Math.max(0, Math.min(n - 1, i))); }}>
-      <svg className="chart block" width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(' and ') + ' chart'}>
+      <svg className="block w-full overflow-visible" width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(' and ') + ' chart'}>
         <defs>
           {series.map((s, k) => (
             <linearGradient key={k} id={`${gid}${k}`} x1="0" x2="0" y1="0" y2="1">
@@ -493,7 +493,7 @@ export function BarsChart({ labels, a, b, height = 180, names = ['Income', 'Expe
   const h = height - 22;
   return (
     <div ref={ref} className="relative select-none">
-      <svg className="chart block" width={w} height={height} role="img" aria-label={`${names[0]} vs ${names[1]} chart`}>
+      <svg className="block w-full overflow-visible" width={w} height={height} role="img" aria-label={`${names[0]} vs ${names[1]} chart`}>
         <line stroke="var(--chart-grid)" x1="0" x2={w} y1={h} y2={h} />
         {labels.map((l, i) => {
           const cx = 4 + slot * i + slot / 2;

@@ -10,8 +10,8 @@ import { Action } from '../types/store';
 
 export function useAI() {
   const { state, dispatch } = useStore();
-  const ask = (text: string) => {
-    const r = interpret(text, state);
+  const ask = async (text: string) => {
+    const r = await interpret(text, state);
     if (r.autoApply && r.actions?.[0]) {
       dispatch({ type: 'batch', ops: r.actions[0].ops as Action[] });
       r.applied = 0;
@@ -111,10 +111,15 @@ export function Palette({ onClose, onNavigate, onAdd, onToggleTheme, hasBiz }: {
   const listRef = useRef<HTMLDivElement>(null);
   const sugg = suggestionsFor(state);
 
-  const run = (text: string) => {
+  const run = async (text: string) => {
     if (!text.trim()) return;
     setBusy(true); setRes(null);
-    setTimeout(() => { setRes(ask(text)); setBusy(false); setQ(''); }, 380);
+    try {
+      const res = await ask(text);
+      setRes(res);
+    } finally {
+      setBusy(false); setQ('');
+    }
   };
 
   const cmds = useMemo<Cmd[]>(() => {

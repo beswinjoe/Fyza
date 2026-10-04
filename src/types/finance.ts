@@ -21,7 +21,7 @@ export interface Card {
   limit?: number;
   statementDay?: number;
   dueDay?: number;
-  accountId: string;
+  accountId?: string;
 }
 
 export interface Loan {

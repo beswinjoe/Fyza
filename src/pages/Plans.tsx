@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Plus, Plane, Sparkles, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Plane, Sparkles, Trash2, AlertTriangle, Compass } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { inr, fmtDate, monthLabel } from '../engine/format';
 import { forecast, goalStats, tripTotal, tripSpent, tripDays, TRIP_PARTS, inWorld } from '../engine/finance';
-import { AreaChart, Seg, Ring, Bar, Card, Stat, Button, Badge, Input, Field, cn } from '../components/ui';
+import { AreaChart, Seg, Ring, Bar, Card, Stat, Button, Badge, Input, Field, EmptyState, cn } from '../components/ui';
 import { AppState } from '../types/app';
 import { Dispatch } from 'react';
 import { Action } from '../types/store';
@@ -11,6 +11,17 @@ import { Action } from '../types/store';
 function ForecastView({ state, world }: { state: AppState; world: any }) {
   const fc = forecast(state, world, 6);
   const [sel, setSel] = useState(0);
+  const empty = state.transactions.filter(inWorld(world)).length === 0 && state.recurring.filter(inWorld(world)).length === 0;
+  
+  if (empty) {
+    return (
+      <Card className="p-8">
+        <EmptyState size="lg" icon={Compass} title="No forecast yet"
+          description="Add income and spending and Fyza will project your future." />
+      </Card>
+    );
+  }
+
   const r = fc[sel];
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">

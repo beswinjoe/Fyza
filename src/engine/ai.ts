@@ -5,6 +5,8 @@ import { AppState } from '../types/app';
 import { AIResult } from '../types/ai';
 import { AIAction } from '../types/store';
 import { TransactionType } from '../types/finance';
+import { getGroq } from './groq';
+import * as tools from './aiTools';
 
 const UNITS: Record<string, number> = { k: 1e3, thousand: 1e3, l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
 export function amounts(text: string): number[] {
@@ -62,7 +64,7 @@ export function estimateTrip(dest: string, days: number): Record<string, number>
 
 const add = (col: keyof AppState, item: Record<string, unknown>): AIAction => ({ type: 'add', col, item: { id: uid(), ...item } });
 
-export function interpret(text: string, state: AppState): AIResult {
+export function localInterpret(text: string, state: AppState): AIResult {
   const now = today();
   const t = text.toLowerCase().trim();
   const world = state.world;
@@ -360,3 +362,93 @@ export const SUGGESTIONS = {
   personal: ['I spent ₹850 on dinner', 'Can I afford a ₹70,000 laptop?', 'How much can I save by June?', 'What if my salary becomes ₹1 lakh?', 'I took a ₹5 lakh loan at 9% for 3 years', 'I want to save ₹3 lakh by next year', 'Why did I spend more this month?'],
   business: ['Why did my profit drop?', 'Can I afford to hire someone for ₹40k/month?', 'What if revenue falls 20%?', 'Transfer ₹40,000 to personal', 'How much will I have in 6 months?'],
 };
+
+export async function interpret(text: string, state: AppState): Promise<AIResult> {
+  const ai = getGroq();
+  if (!ai) return localInterpret(text, state);
+
+  try {
+    const history = state.aiHistory.slice(-10).map((r) => [
+      { role: 'user' as const, content: r.q },
+      { role: 'assistant' as const, content: r.summary }
+    ]).flat();
+
+    const response = await ai.chat.completions.create({
+      model: 'openai/gpt-oss-20b',
+      messages: [
+        { role: 'system', content: `You are Fyza, a smart, premium AI financial assistant (inspired by Apple, Notion, Linear). Your job is to understand the user's intent and use the provided tools to fetch financial data or perform actions.
+- NEVER invent numbers. ALWAYS call a tool when financial calculations, adding transactions, forecasting, or checking affordability is required.
+- If a user provides incomplete information (e.g. "Can I afford a MacBook?"), DO NOT call a tool with placeholder values. Instead, ask for clarification ("What price are you considering?").
+- If the user asks a general question about their money (e.g., "How much did I spend this month?"), call getFinancialContext().
+- Keep your tone concise, calm, precise, and expensive.
+- The current date is ${today().toISOString().split('T')[0]}.` },
+        ...history,
+        { role: 'user', content: text }
+      ],
+      tools: (await import('./groqTools')).groqTools,
+      tool_choice: 'auto'
+    });
+
+    const msg = response.choices[0]?.message;
+    const call = msg?.tool_calls?.[0];
+    
+    if (!call) {
+      return { id: uid(), q: text, at: Date.now(), kind: 'answer', title: 'Fyza', summary: msg?.content || 'I need more information.' };
+    }
+
+    let toolResult: any = {};
+    const args = JSON.parse(call.function.arguments);
+    
+    switch (call.function.name) {
+      case 'addTransaction': toolResult = tools.addTransaction(state, args.amount, args.category, args.type, args.date_str, args.note); break;
+      case 'addRecurring': toolResult = tools.addRecurring(state, args.amount, args.category, args.type, args.name, args.day, args.weekly); break;
+      case 'runWhatIf': toolResult = tools.runWhatIf(state, args.sc, args.desc); break;
+      case 'checkAffordability': toolResult = tools.checkAffordability(state, args.price, args.item, args.isMonthly); break;
+      case 'whenCanIAfford': toolResult = tools.whenCanIAfford(state, args.price, args.item); break;
+      case 'projectSavings': toolResult = tools.projectSavings(state, args.targetDateYMD); break;
+      case 'getSpendAllowance': toolResult = tools.getSpendAllowance(state, args.days); break;
+      case 'explainChanges': toolResult = tools.explainChanges(state); break;
+      case 'suggestBudget': toolResult = tools.suggestBudget(state); break;
+      case 'planTrip': toolResult = tools.planTrip(state, args.destination, args.days, undefined, args.targetDateYMD); break;
+      case 'addLoan': toolResult = tools.addLoan(state, args.amount, args.rate, args.tenureMonths, args.type); break;
+      case 'createGoal': toolResult = tools.createGoal(state, args.name, args.target, args.targetDateYMD); break;
+      case 'transferMoney': toolResult = tools.transferMoney(state, args.amount, args.toPersonal); break;
+      case 'getFinancialContext': toolResult = tools.getFinancialContext(state); break;
+    }
+
+    const synthesisResponse = await ai.chat.completions.create({
+      model: 'openai/gpt-oss-20b',
+      messages: [
+        { role: 'system', content: `Summarize the financial tool response. Be concise, premium, and calm. Keep the tone like Apple × Linear. Return the response in JSON format.` },
+        ...history, 
+        { role: 'user', content: text },
+        msg,
+        { role: 'tool', tool_call_id: call.id, content: JSON.stringify({ summary: toolResult.summary }) }
+      ],
+      response_format: { type: 'json_object' }
+    });
+
+    let parsed: any = {};
+    try {
+      parsed = JSON.parse(synthesisResponse.choices[0]?.message?.content || '{}');
+    } catch(e) {}
+
+    return {
+      id: uid(), q: text, at: Date.now(),
+      kind: toolResult.kind,
+      title: parsed.title || toolResult.title,
+      summary: parsed.summary || toolResult.summary,
+      tone: parsed.tone || toolResult.tone,
+      metrics: toolResult.metrics,
+      chart: toolResult.chart,
+      actions: toolResult.actions,
+      breakdown: toolResult.breakdown,
+      scenario: toolResult.scenario,
+      autoApply: toolResult.autoApply
+    };
+
+  } catch (error) {
+    console.error('Groq error:', error);
+    return localInterpret(text, state);
+  }
+}

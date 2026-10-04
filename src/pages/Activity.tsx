@@ -126,7 +126,7 @@ export default function ActivityPage({ openAdd }: { openAdd: (t?: string) => voi
       {empty ? (
         <Card>
           <EmptyState size="lg" icon={ReceiptText} title="No activity yet"
-            description="Your income, spending, transfers, and payments will appear here."
+            description="Add your first income or expense."
             primaryAction={{ label: 'Add transaction', onClick: () => openAdd('expense'), icon: Plus }}
             secondaryAction={{ label: 'Add income', onClick: () => openAdd('income') }} />
         </Card>
