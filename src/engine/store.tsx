@@ -5,7 +5,9 @@ import { uid } from './format';
 import { AppState } from '../types/app';
 import { Action } from '../types/store';
 
-const KEY = 'fyza.v1';
+// v2: workspaces start empty. v1 contained generated demo data and is discarded.
+const KEY = 'fyza.v2';
+try { localStorage.removeItem('fyza.v1'); } catch { /* ignore */ }
 
 export const Ctx = createContext<{ state: AppState; dispatch: React.Dispatch<Action> } | null>(null);
 

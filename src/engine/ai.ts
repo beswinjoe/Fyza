@@ -243,7 +243,7 @@ export function interpret(text: string, state: AppState): AIResult {
     const rate = +(t.match(/(\d+(?:\.\d+)?)\s*%/) || [, 10])[1];
     const ten = t.match(/(\d+)\s*(years?|yrs?|months?)/);
     const n = ten ? (/month/.test(ten[2]) ? +ten[1] : +ten[1] * 12) : 36;
-    const type = (t.match(/(home|car|vehicle|education|personal|business|bike)/) || [, 'personal'])[1].replace('car', 'vehicle').replace('bike', 'vehicle');
+    const type = (t.match(/(home|car|vehicle|education|personal|business|bike)/) || [undefined, 'personal'])[1].replace('car', 'vehicle').replace('bike', 'vehicle');
     const e = emi(amt, rate, n);
     const interest = e * n - amt;
     return resp({
@@ -258,7 +258,7 @@ export function interpret(text: string, state: AppState): AIResult {
   const trip = text.match(/(?:going|trip|travel(?:ling)?|visit(?:ing)?|heading|flying)\s+(?:to\s+)?([A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)?)/i);
   if (trip && !/spent|paid/.test(t)) {
     const dest = cap(trip[1].replace(/\b(for|in|on|next|this)\b.*$/i, '').trim());
-    const days = +(t.match(/(\d+)\s*days?/) || [, 4])[1];
+    const days = +(t.match(/(\d+)\s*days?/) || [undefined, 4])[1];
     const m = monthFrom(t, now) || addMonths(now, 1);
     const start = new Date(m.getFullYear(), m.getMonth(), m.getMonth() === now.getMonth() ? Math.min(now.getDate() + 7, 20) : 18);
     const budgetRaw = estimateTrip(dest, days);
@@ -309,10 +309,10 @@ export function interpret(text: string, state: AppState): AIResult {
   const recurring = /every month|monthly|per month|a month|each month|every week|weekly|on the \d+/.test(t);
   if (recurring && amt) {
     const isIncome = /\b(get|earn|receive|salary|pocket money|stipend|allowance|paid to me|revenue|retainer)\b/.test(t) && !/\bpay\b/.test(t);
-    const day = +(t.match(/on the (\d+)/) || [, isIncome ? 1 : now.getDate()])[1];
+    const day = +(t.match(/on the (\d+)/) || [undefined, isIncome ? 1 : now.getDate()])[1];
     const name = isIncome
       ? (t.match(/pocket money|salary|stipend|allowance|retainer|rent income|freelance/) || ['Income'])[0]
-      : (t.match(/pay (?:₹?[\d,.]+\s*(?:k|l)?\s*)?(?:for )?([a-z ]+?)(?: on| every| monthly| each|$)/) || t.match(/for ([a-z ]+?)(?: on| every|$)/) || [, catOf(t)])[1];
+      : (t.match(/pay (?:₹?[\d,.]+\s*(?:k|l)?\s*)?(?:for )?([a-z ]+?)(?: on| every| monthly| each|$)/) || t.match(/for ([a-z ]+?)(?: on| every|$)/) || [undefined, catOf(t)])[1];
     const weekly = /week/.test(t);
     const amount = weekly ? Math.round(amt * 52 / 12) : amt;
     const acc = state.accounts.find((a) => W(a) === world);

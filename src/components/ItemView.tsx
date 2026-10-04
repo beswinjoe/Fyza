@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { inr, fmtDate, monthLabel } from '../engine/format';
 import { goalStats, loanStats, cardStats, tripTotal, tripSpent, TRIP_PARTS } from '../engine/finance';
-import { Modal, Ring, Bar } from './ui';
+import { Modal, Ring, Bar, Button, Stat, Card } from './ui';
 import { AppState } from '../types/app';
 
 export function ItemView({ type, id, onClose }: { type: string; id: string; onClose: () => void }) {
@@ -15,19 +15,19 @@ export function ItemView({ type, id, onClose }: { type: string; id: string; onCl
     if (!g) return null;
     const s = goalStats(g);
     return (
-      <Modal title={g.name} onClose={onClose} foot={<button className="btn danger sm" onClick={() => remove('goals')}><Trash2 /> Delete goal</button>}>
-        <div className="row" style={{ gap: 16, marginBottom: 24 }}>
-          <Ring value={s.progress} size={64} stroke={6} color={s.onTrack ? 'var(--accent)' : 'var(--warn)'} />
+      <Modal title={g.name} onClose={onClose} foot={<Button variant="danger" size="sm" onClick={() => remove('goals')}><Trash2 /> Delete goal</Button>}>
+        <div className="mb-6 flex items-center gap-4">
+          <Ring value={s.progress} size={64} stroke={6} color={s.onTrack ? 'var(--accent)' : 'var(--warning)'} />
           <div>
-            <div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(g.current)} <span className="faint" style={{ fontSize: 16 }}>/ {inr(g.target, { compact: true })}</span></div>
-            <div className="faint">{s.onTrack ? 'On track' : 'Behind schedule'} · {Math.round(s.progress * 100)}%</div>
+            <div className="num text-[24px] font-semibold text-foreground">{inr(g.current)} <span className="text-[16px] text-foreground-subtle">/ {inr(g.target, { compact: true })}</span></div>
+            <div className="text-meta text-foreground-subtle">{s.onTrack ? 'On track' : 'Behind schedule'} · {Math.round(s.progress * 100)}%</div>
           </div>
         </div>
-        <div className="grid g-2">
-          <div className="card card-pad"><div className="eyebrow">Monthly target</div><div className="v num">{inr(g.monthly)}</div></div>
-          <div className="card card-pad"><div className="eyebrow">Estimated completion</div><div className="v">{s.eta ? monthLabel(s.eta, true) : 'Unknown'}</div></div>
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="p-3"><Stat label="Monthly target" value={inr(g.monthly)} /></Card>
+          <Card className="p-3"><Stat label="Estimated completion" value={s.eta ? monthLabel(s.eta, true) : 'Unknown'} /></Card>
         </div>
-        {!s.onTrack && s.required && <div className="insight" style={{ marginTop: 16 }}><p>You need to save <b>{inr(s.required)}/mo</b> to hit your target by {fmtDate(g.targetDate)}.</p></div>}
+        {!s.onTrack && s.required && <div className="mt-4 rounded-lg bg-surface-muted p-3 text-[13px] text-foreground-subtle"><p>You need to save <b className="text-foreground">{inr(s.required)}/mo</b> to hit your target by {fmtDate(g.targetDate)}.</p></div>}
       </Modal>
     );
   }
@@ -37,16 +37,16 @@ export function ItemView({ type, id, onClose }: { type: string; id: string; onCl
     if (!t) return null;
     const total = tripTotal(t), spent = tripSpent(state, t);
     return (
-      <Modal title={t.destination} onClose={onClose} foot={<button className="btn danger sm" onClick={() => remove('trips')}><Trash2 /> Delete trip</button>}>
-        <div className="row between" style={{ marginBottom: 24 }}>
-          <div><div className="faint">Total Budget</div><div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(total)}</div></div>
-          <div style={{ textAlign: 'right' }}><div className="faint">Spent</div><div className="num" style={{ fontSize: 24, fontWeight: 600, color: spent > total ? 'var(--neg)' : 'var(--pos)' }}>{inr(spent)}</div></div>
+      <Modal title={t.destination} onClose={onClose} foot={<Button variant="danger" size="sm" onClick={() => remove('trips')}><Trash2 /> Delete trip</Button>}>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <Stat label="Total Budget" value={inr(total)} size="lg" />
+          <Stat label="Spent" value={inr(spent)} size="lg" tone={spent > total ? 'negative' : 'positive'} className="text-right" />
         </div>
-        <Bar value={total ? spent / total : 0} tone={spent > total ? 'neg' : 'accent'} />
-        <div className="grid g-2" style={{ marginTop: 24, gap: 12 }}>
+        <Bar value={total ? spent / total : 0} tone={spent > total ? 'negative' : 'accent'} />
+        <div className="mt-6 grid grid-cols-2 gap-3">
           {TRIP_PARTS.map((p) => (
-            <div key={p} className="row between" style={{ padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 8 }}>
-              <span className="muted" style={{ textTransform: 'capitalize' }}>{p}</span><span className="num">{inr(t.budget[p] || 0)}</span>
+            <div key={p} className="flex items-center justify-between rounded-lg bg-surface-muted px-3 py-2">
+              <span className="text-[13px] capitalize text-foreground-subtle">{p}</span><span className="num font-medium">{inr(t.budget[p] || 0)}</span>
             </div>
           ))}
         </div>
@@ -59,17 +59,17 @@ export function ItemView({ type, id, onClose }: { type: string; id: string; onCl
     if (!l) return null;
     const s = loanStats(l);
     return (
-      <Modal title={l.name} onClose={onClose} foot={<button className="btn danger sm" onClick={() => remove('loans')}><Trash2 /> Delete loan</button>}>
-        <div className="row between" style={{ marginBottom: 24 }}>
-          <div><div className="faint">Remaining Balance</div><div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(s.balance)}</div></div>
-          <div style={{ textAlign: 'right' }}><div className="faint">Monthly EMI</div><div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(s.emi)}</div></div>
+      <Modal title={l.name} onClose={onClose} foot={<Button variant="danger" size="sm" onClick={() => remove('loans')}><Trash2 /> Delete loan</Button>}>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <Stat label="Remaining Balance" value={inr(s.balance)} size="lg" />
+          <Stat label="Monthly EMI" value={inr(s.emi)} size="lg" className="text-right" />
         </div>
-        <div className="bar" style={{ marginBottom: 24 }}><i style={{ width: `${s.progress * 100}%`, background: 'var(--accent)' }} /></div>
-        <div className="grid g-2">
-          <div className="card card-pad"><div className="eyebrow">Interest paid</div><div className="v num">{inr(s.interestPaid)}</div></div>
-          <div className="card card-pad"><div className="eyebrow">Interest remaining</div><div className="v num">{inr(s.interestRemaining)}</div></div>
-          <div className="card card-pad"><div className="eyebrow">Months left</div><div className="v num">{s.remainingMonths} / {l.tenureMonths}</div></div>
-          <div className="card card-pad"><div className="eyebrow">Next due</div><div className="v">{fmtDate(s.nextDue)}</div></div>
+        <Bar value={s.progress} tone="accent" className="mb-6" />
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="p-3"><Stat label="Interest paid" value={inr(s.interestPaid)} /></Card>
+          <Card className="p-3"><Stat label="Interest remaining" value={inr(s.interestRemaining)} /></Card>
+          <Card className="p-3"><Stat label="Months left" value={`${s.remainingMonths} / ${l.tenureMonths}`} /></Card>
+          <Card className="p-3"><Stat label="Next due" value={fmtDate(s.nextDue)} /></Card>
         </div>
       </Modal>
     );
@@ -80,15 +80,15 @@ export function ItemView({ type, id, onClose }: { type: string; id: string; onCl
     if (!c) return null;
     const s = cardStats(state, c);
     return (
-      <Modal title={c.name} onClose={onClose} foot={<button className="btn danger sm" onClick={() => remove('cards')}><Trash2 /> Delete card</button>}>
-        <div className="row between" style={{ marginBottom: 24 }}>
-          <div><div className="faint">Spent this cycle</div><div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(s.spent)}</div></div>
-          {c.kind === 'credit' && <div style={{ textAlign: 'right' }}><div className="faint">Available limit</div><div className="num" style={{ fontSize: 24, fontWeight: 600 }}>{inr(s.availableLimit)}</div></div>}
+      <Modal title={c.name} onClose={onClose} foot={<Button variant="danger" size="sm" onClick={() => remove('cards')}><Trash2 /> Delete card</Button>}>
+        <div className="mb-6 flex items-end justify-between gap-4">
+          <Stat label="Spent this cycle" value={inr(s.spent)} size="lg" />
+          {c.kind === 'credit' && <Stat label="Available limit" value={inr(s.availableLimit)} size="lg" className="text-right" />}
         </div>
-        {c.kind === 'credit' && <div className="bar" style={{ marginBottom: 24 }}><i style={{ width: `${s.utilization * 100}%`, background: s.utilization > 0.8 ? 'var(--warn)' : 'var(--accent)' }} /></div>}
-        <div className="grid g-2">
-          {c.kind === 'credit' && <div className="card card-pad"><div className="eyebrow">Credit limit</div><div className="v num">{inr(s.limit)}</div></div>}
-          {c.kind === 'credit' && <div className="card card-pad"><div className="eyebrow">Payment due</div><div className="v">{fmtDate(s.dueDate)}</div></div>}
+        {c.kind === 'credit' && <Bar value={s.utilization} tone={s.utilization > 0.8 ? 'warning' : 'accent'} className="mb-6" />}
+        <div className="grid grid-cols-2 gap-3">
+          {c.kind === 'credit' && <Card className="p-3"><Stat label="Credit limit" value={inr(s.limit)} /></Card>}
+          {c.kind === 'credit' && <Card className="p-3"><Stat label="Payment due" value={fmtDate(s.dueDate)} /></Card>}
         </div>
       </Modal>
     );

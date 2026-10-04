@@ -1,83 +1,180 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700&family=Inter+Tight:wght@500;600;700&display=swap');
+@import "tailwindcss";
 
-:root, [data-theme='dark'] {
-  --bg: #09090b;
-  --bg-2: #0e0e11;
-  --surface: #121216;
-  --surface-2: #17171c;
-  --surface-3: #1e1e24;
-  --border: rgba(255, 255, 255, 0.07);
-  --border-2: rgba(255, 255, 255, 0.12);
-  --text: #ededf0;
-  --text-2: #a1a1aa;
-  --text-3: #6b6b74;
-  --accent: #c8f169;
-  --accent-ink: #12160a;
-  --accent-soft: rgba(200, 241, 105, 0.1);
-  --pos: #4ade9b;
-  --neg: #ff7a7a;
-  --warn: #f5c26b;
-  --violet: #a5a3ff;
-  --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 20px 40px -24px rgba(0,0,0,0.6);
-  --shadow-lg: 0 30px 80px -20px rgba(0,0,0,0.75), 0 0 0 1px var(--border);
-  --chart-1: #c8f169;
-  --chart-2: #a5a3ff;
-  --grid: rgba(255,255,255,0.05);
+/* ------------------------------------------------------------------
+   Fyza design system
+   Raw theme values live in CSS variables so light/dark can flip at
+   runtime via [data-theme]. Tailwind tokens reference them inline.
+------------------------------------------------------------------- */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root,
+[data-theme='dark'] {
+  --background: #0a0a0b;
+  --surface: #111113;
+  --surface-muted: #161618;
+  --surface-elevated: #18181b;
+  --foreground: #ececee;
+  --foreground-muted: #a0a0a8;
+  --foreground-subtle: #68686f;
+  --border: rgb(255 255 255 / 0.065);
+  --border-strong: rgb(255 255 255 / 0.12);
+  --accent: #c6ec7c;
+  --accent-soft: rgb(198 236 124 / 0.09);
+  --accent-foreground: #11150a;
+  --inverse: #f4f4f5;
+  --inverse-foreground: #0a0a0b;
+  --positive: #5ad49b;
+  --negative: #f07f7f;
+  --warning: #e8bf72;
+  --chart-1: #c6ec7c;
+  --chart-2: #8f8f98;
+  --chart-grid: rgb(255 255 255 / 0.05);
+  --overlay: rgb(0 0 0 / 0.56);
+  --shadow-card-v: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-pop-v: 0 0 0 1px rgb(255 255 255 / 0.07), 0 24px 64px -16px rgb(0 0 0 / 0.7);
   color-scheme: dark;
 }
+
 [data-theme='light'] {
-  --bg: #f7f7f5;
-  --bg-2: #f1f1ee;
+  --background: #f7f7f6;
   --surface: #ffffff;
-  --surface-2: #fafaf8;
-  --surface-3: #f0f0ec;
-  --border: rgba(10, 10, 20, 0.08);
-  --border-2: rgba(10, 10, 20, 0.14);
-  --text: #111114;
-  --text-2: #5b5b66;
-  --text-3: #93939c;
-  --accent: #1a1a1f;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(20, 20, 30, 0.06);
-  --pos: #11935b;
-  --neg: #d64545;
-  --warn: #b7791f;
-  --violet: #5b57e8;
-  --shadow: 0 1px 2px rgba(10,10,20,0.04), 0 12px 32px -18px rgba(10,10,20,0.12);
-  --shadow-lg: 0 30px 80px -20px rgba(10,10,20,0.25), 0 0 0 1px var(--border);
-  --chart-1: #5b8a00;
-  --chart-2: #5b57e8;
-  --grid: rgba(10,10,20,0.06);
+  --surface-muted: #f3f3f1;
+  --surface-elevated: #ffffff;
+  --foreground: #111113;
+  --foreground-muted: #5c5c66;
+  --foreground-subtle: #95959d;
+  --border: rgb(15 15 25 / 0.075);
+  --border-strong: rgb(15 15 25 / 0.14);
+  --accent: #4d7a0a;
+  --accent-soft: rgb(77 122 10 / 0.08);
+  --accent-foreground: #ffffff;
+  --inverse: #111113;
+  --inverse-foreground: #ffffff;
+  --positive: #12865a;
+  --negative: #cc4040;
+  --warning: #a8701a;
+  --chart-1: #4d7a0a;
+  --chart-2: #a3a3ab;
+  --chart-grid: rgb(15 15 25 / 0.06);
+  --overlay: rgb(20 20 25 / 0.28);
+  --shadow-card-v: 0 1px 2px rgb(15 15 25 / 0.04);
+  --shadow-pop-v: 0 0 0 1px rgb(15 15 25 / 0.06), 0 24px 64px -16px rgb(15 15 25 / 0.22);
   color-scheme: light;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body, #root { height: 100%; }
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  font-feature-settings: 'cv11', 'ss01', 'ss03';
-  background: var(--bg);
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  transition: background .3s ease, color .3s ease;
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-inverse: var(--inverse);
+  --color-inverse-foreground: var(--inverse-foreground);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-warning: var(--warning);
+  --color-overlay: var(--overlay);
+
+  --shadow-card: var(--shadow-card-v);
+  --shadow-pop: var(--shadow-pop-v);
 }
-button, input, select, textarea { font: inherit; color: inherit; }
-button { cursor: pointer; background: none; border: none; }
-a { color: inherit; text-decoration: none; }
-::selection { background: var(--accent); color: var(--accent-ink); }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 10px; border: 3px solid var(--bg); }
 
-.num { font-family: 'Inter Tight', 'Inter', sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.muted { color: var(--text-2); }
-.faint { color: var(--text-3); }
-.pos { color: var(--pos); }
-.neg { color: var(--neg); }
-.warn { color: var(--warn); }
-.eyebrow { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); font-weight: 500; }
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
 
+  /* Type scale — eyebrow / meta / body / title / display / hero */
+  --text-eyebrow: 11px;
+  --text-eyebrow--line-height: 16px;
+  --text-eyebrow--letter-spacing: 0.06em;
+  --text-meta: 12px;
+  --text-meta--line-height: 16px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-title: 15px;
+  --text-title--line-height: 20px;
+  --text-page: 32px;
+  --text-page--line-height: 36px;
+  --text-page--letter-spacing: -0.025em;
+  --text-figure: 24px;
+  --text-figure--line-height: 28px;
+  --text-figure--letter-spacing: -0.02em;
+  --text-hero: 56px;
+  --text-hero--line-height: 1;
+  --text-hero--letter-spacing: -0.04em;
+
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --animate-fade-in: fade-in 0.24s var(--ease-out-soft) both;
+  --animate-rise: rise 0.36s var(--ease-out-soft) both;
+  --animate-pop: pop 0.2s var(--ease-out-soft) both;
+  --animate-sheet: sheet 0.3s var(--ease-out-soft) both;
+  --animate-drawer: drawer 0.3s var(--ease-out-soft) both;
+
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @keyframes pop { from { opacity: 0; transform: translateY(4px) scale(0.985); } to { opacity: 1; transform: none; } }
+  @keyframes sheet { from { transform: translateY(100%); } to { transform: none; } }
+  @keyframes drawer { from { transform: translateX(100%); } to { transform: none; } }
+}
+
+/* Tabular, slightly tightened numerals for every money value */
+@utility num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum', 'cv11';
+  letter-spacing: -0.01em;
+}
+
+/* Children reveal in a short cascade */
+@utility stagger {
+  & > * { animation: var(--animate-rise); }
+  & > *:nth-child(2) { animation-delay: 40ms; }
+  & > *:nth-child(3) { animation-delay: 80ms; }
+  & > *:nth-child(4) { animation-delay: 120ms; }
+  & > *:nth-child(5) { animation-delay: 160ms; }
+  & > *:nth-child(n + 6) { animation-delay: 200ms; }
+}
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body {
+    @apply bg-background text-foreground font-sans text-body antialiased;
+    font-feature-settings: 'cv11', 'ss01', 'ss03';
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { cursor: pointer; }
+  button:disabled { cursor: not-allowed; }
+  ::selection { background: var(--accent-soft); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type='number'] { -moz-appearance: textfield; }
+  input[type='date']::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
+  [data-theme='dark'] input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
+  * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  svg.chart text { fill: var(--foreground-subtle); font-size: 11px; font-family: var(--font-sans); font-variant-numeric: tabular-nums; }
+}
+
+@keyframes draw { from { stroke-dashoffset: 3000; } to { stroke-dashoffset: 0; } }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 /* ---------- Layout ---------- */
 .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
 .sidebar {

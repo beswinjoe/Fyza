@@ -273,7 +273,7 @@ export function insights(state: AppState, world: World, now = today()) {
 }
 
 export function netWorth(state: AppState) {
-  const assets = state.accounts.reduce((s, a) => s + accountBalance(state, a), 0) + (state.goals || []).reduce((s, g) => s + (+g.current || 0), 0) * 0;
+  const assets = state.accounts.reduce((s, a) => s + accountBalance(state, a), 0) + (state.goals || []).reduce((s, g) => s + (+g.current || 0), 0);
   const cardDebt = state.cards.filter((c) => c.kind === 'credit').reduce((s, c) => s + cardStats(state, c).spent, 0);
   const loanDebt = state.loans.reduce((s, l) => s + loanStats(l).balance, 0);
   return { assets, liabilities: cardDebt + loanDebt, net: assets - cardDebt - loanDebt, cardDebt, loanDebt };

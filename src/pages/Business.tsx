@@ -1,86 +1,123 @@
 import { useState } from 'react';
+import { Building2, Plus, ReceiptText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { businessMetrics } from '../engine/finance';
-import { inr, monthLabel } from '../engine/format';
-import { CountUp, Bar, AreaChart, Seg } from '../components/ui';
-
+import { businessMetrics, inWorld } from '../engine/finance';
+import { inr, monthLabel, fmtDate } from '../engine/format';
+import { Bar, AreaChart, Seg, Card, PageHeader, SectionHeader, EmptyState, Badge, Stat, HeroAmount, Eyebrow, Legend, Row, RowMeta, Icon, cn } from '../components/ui';
 import { AppState } from '../types/app';
 
 export function BusinessHero({ state }: { state: AppState }) {
   const m = businessMetrics(state);
   return (
-    <div className="card hero">
-      <div className="row between wrap">
-        <span className="eyebrow">Business Performance · {monthLabel(m.period)}</span>
-        <span className={`chip ${m.margin > 0.2 ? 'pos' : m.margin > 0 ? '' : 'warn'}`}>{Math.round(m.margin * 100)}% margin</span>
+    <Card className="relative overflow-hidden p-7 max-md:p-5">
+      <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-accent-soft blur-3xl" aria-hidden />
+      <div className="relative">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Eyebrow>Profit · {monthLabel(m.period)}</Eyebrow>
+          {m.revenue > 0 && <Badge tone={m.margin > 0.2 ? 'positive' : m.margin > 0 ? 'neutral' : 'warning'}>{Math.round(m.margin * 100)}% margin</Badge>}
+        </div>
+        <HeroAmount v={m.profit} className="mt-4" />
+        <p className="mt-3 max-w-[56ch] text-[14px] leading-6 text-foreground-muted">
+          {m.revenue + m.expenses > 0
+            ? <>Revenue of <b className="num font-semibold text-foreground">{inr(m.revenue)}</b> against <b className="num font-semibold text-foreground">{inr(m.expenses)}</b> in expenses last month.</>
+            : 'No business revenue or expenses were recorded last month.'}
+        </p>
+        <div className="mt-7 grid grid-cols-4 gap-x-6 gap-y-5 border-t border-border pt-5 max-md:grid-cols-2">
+          <Stat label="Revenue" value={inr(m.revenue)} />
+          <Stat label="Expenses" value={inr(m.expenses)} />
+          <Stat label="Cash" value={inr(m.cash, { compact: true })} />
+          <Stat label="Runway" value={Number.isFinite(m.runway) && m.runway <= 99 ? `${m.runway.toFixed(1)} mo` : '—'} tone={m.runway < 3 ? 'warning' : undefined} />
+        </div>
       </div>
-      <div className="hero-amount"><CountUp v={m.profit} /></div>
-      <p className="muted" style={{ maxWidth: 520 }}>
-        You generated <b style={{ color: 'var(--text)' }} className="num">{inr(m.revenue)}</b> in revenue and had <b style={{ color: 'var(--text)' }} className="num">{inr(m.expenses)}</b> in expenses last month.
-      </p>
-      <div className="hero-stats">
-        <div className="hero-stat"><div className="eyebrow">Revenue</div><div className="v num">{inr(m.revenue)}</div></div>
-        <div className="hero-stat"><div className="eyebrow">Expenses</div><div className="v num">{inr(m.expenses)}</div></div>
-        <div className="hero-stat"><div className="eyebrow">Cash on hand</div><div className="v num">{inr(m.cash, { compact: true })}</div></div>
-        <div className="hero-stat"><div className="eyebrow">Runway</div><div className="v num">{m.runway > 99 ? '∞' : m.runway.toFixed(1)} mo</div></div>
-      </div>
-    </div>
+    </Card>
   );
 }
 
-export default function BusinessPage() {
-  const { state } = useStore();
+export default function BusinessPage({ openAdd }: { openAdd: (t?: string) => void }) {
+  const { state, dispatch } = useStore();
   const m = businessMetrics(state);
   const [tab, setTab] = useState('overview');
+  const hasData = state.accounts.some(inWorld('business')) || state.transactions.some((t) => (t.world || 'personal') === 'business') || state.invoices.length > 0;
+  const toBiz = (t: string) => { if (state.world !== 'business') dispatch({ type: 'set', patch: { world: 'business' } }); openAdd(t); };
+  const invoices = [...state.invoices].sort((a, b) => (a.due || '').localeCompare(b.due || ''));
+
+  if (!hasData) {
+    return (
+      <div className="animate-fade-in">
+        <PageHeader eyebrow="Business" title="Workspace" />
+        <Card>
+          <EmptyState size="lg" icon={Building2} title="No business data yet"
+            description="Add your business bank account to see revenue, expenses, profit, cash, and runway — kept separate from your personal money."
+            primaryAction={{ label: 'Add business account', onClick: () => toBiz('account'), icon: Plus }}
+            secondaryAction={{ label: 'Record revenue', onClick: () => toBiz('income') }} />
+        </Card>
+        <div className="mt-5 grid gap-5 md:grid-cols-3">
+          {[['Profit & margin', 'Monthly profit and margin, calculated from your business activity.'], ['Cash & runway', 'How long your cash lasts at your current burn rate.'], ['Invoices', 'What you’re owed and what you owe, in one place.']].map(([t, d]) => (
+            <Card key={t} tone="secondary" className="p-5">
+              <div className="text-[13px] font-semibold">{t}</div>
+              <p className="mt-1 text-[13px] leading-5 text-foreground-subtle">{d}</p>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="page">
-      <div className="page-head">
-        <div><div className="eyebrow">Business</div><h1 className="page-title">Workspace</h1></div>
-        <Seg value={tab} onChange={setTab} options={[{ value: 'overview', label: 'Overview' }, { value: 'cashflow', label: 'Cash Flow' }]} />
-      </div>
-      
+    <div className="animate-fade-in">
+      <PageHeader eyebrow="Business" title="Workspace" action={<Seg label="View" value={tab} onChange={setTab} options={[{ value: 'overview', label: 'Overview' }, { value: 'cashflow', label: 'Cash flow' }]} />} />
+
       {tab === 'overview' && (
-        <div className="grid g-main stagger">
-          <div className="stack">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px] stagger">
+          <div className="flex min-w-0 flex-col gap-5">
             <BusinessHero state={state} />
-            <div className="card card-pad">
-              <div className="card-head"><div><div className="card-title">Runway & Burn</div><div className="faint" style={{ fontSize: 12.5 }}>Average over last 3 months</div></div></div>
-              <div className="row wrap" style={{ gap: 24, marginTop: 10 }}>
-                <div><div className="eyebrow">Avg Revenue</div><div className="v num" style={{ fontSize: 22, fontWeight: 600 }}>{inr(m.avgRev)}</div></div>
-                <div><div className="eyebrow">Avg Burn</div><div className="v num" style={{ fontSize: 22, fontWeight: 600 }}>{inr(m.avgExp)}</div></div>
-                <div><div className="eyebrow">Net Burn</div><div className={`v num ${m.netBurn > 0 ? 'neg' : 'pos'}`} style={{ fontSize: 22, fontWeight: 600 }}>{inr(m.netBurn, { sign: true })}</div></div>
+            <Card className="p-5">
+              <SectionHeader title="Runway & burn" sub="Average over the last 3 months" />
+              <div className="grid grid-cols-3 gap-6 max-sm:grid-cols-1 max-sm:gap-4">
+                <Stat size="lg" label="Avg revenue" value={inr(m.avgRev)} />
+                <Stat size="lg" label="Avg burn" value={inr(m.avgExp)} />
+                <Stat size="lg" label="Net burn" value={inr(m.netBurn, { sign: true })} tone={m.netBurn > 0 ? 'negative' : 'positive'} />
               </div>
-              <div style={{ marginTop: 24 }}><div className="row between faint" style={{ fontSize: 12, marginBottom: 6 }}><span>Cash vs Runway ({m.runway > 99 ? 'Infinite' : m.runway.toFixed(1)} months)</span><span className="num">{inr(m.cash, { compact: true })}</span></div>
-              <Bar value={Math.min(1, m.runway / 12)} tone={m.runway < 3 ? 'warn' : 'pos'} /></div>
-            </div>
-          </div>
-          <div className="stack">
-            <div className="card card-pad">
-              <div className="card-title" style={{ marginBottom: 16 }}>Invoices</div>
-              <div className="list">
-                <div className="li">
-                  <div className="meta"><div className="t">Awaiting payment</div><div className="s">Receivables</div></div>
-                  <div className="amt num pos">{inr(m.receivable)}</div>
+              <div className="mt-6">
+                <div className="mb-2 flex justify-between text-meta text-foreground-subtle">
+                  <span>Runway {Number.isFinite(m.runway) && m.runway <= 99 ? `· ${m.runway.toFixed(1)} months` : '· no burn yet'}</span>
+                  <span className="num">{inr(m.cash, { compact: true })} cash</span>
                 </div>
-                <div className="li">
-                  <div className="meta"><div className="t">To pay</div><div className="s">Payables</div></div>
-                  <div className="amt num neg">{inr(m.payable)}</div>
-                </div>
+                <Bar value={Number.isFinite(m.runway) ? Math.min(1, m.runway / 12) : 1} tone={m.runway < 3 ? 'warning' : 'positive'} />
               </div>
-            </div>
+            </Card>
           </div>
+          <Card className="p-5">
+            <SectionHeader icon={ReceiptText} title="Invoices" />
+            <div className="grid grid-cols-2 gap-4 border-b border-border pb-4">
+              <Stat label="Receivable" value={inr(m.receivable)} tone={m.receivable ? 'positive' : undefined} />
+              <Stat label="Payable" value={inr(m.payable)} tone={m.payable ? 'negative' : undefined} />
+            </div>
+            {invoices.length === 0 ? (
+              <p className="pt-4 text-[13px] leading-5 text-foreground-subtle">No invoices yet. Invoices you create will show what you're owed and what's due.</p>
+            ) : (
+              <div className="pt-2">
+                {invoices.slice(0, 6).map((i) => (
+                  <Row key={i.id}>
+                    <Icon as={i.kind === 'payable' ? ArrowUpRight : ArrowDownLeft} size="sm" tone={i.kind === 'payable' ? undefined : 'pos'} />
+                    <RowMeta title={i.client || 'Invoice'} sub={[i.status, i.due && `due ${fmtDate(i.due)}`].filter(Boolean).join(' · ')} />
+                    <span className={cn('num text-body font-medium', i.status === 'paid' && 'text-foreground-subtle line-through')}>{inr(i.amount)}</span>
+                  </Row>
+                ))}
+              </div>
+            )}
+          </Card>
         </div>
       )}
 
       {tab === 'cashflow' && (
-        <div className="card card-pad stagger">
-          <div className="card-title" style={{ marginBottom: 16 }}>Revenue vs Expenses</div>
-          <AreaChart height={300} labels={['3 mo ago', '2 mo ago', 'Last mo', 'This mo']} series={[
-            { name: 'Revenue', values: [m.avgRev, m.prev.income, m.cur.income, m.mtd.income], color: 'var(--pos)' },
-            { name: 'Expenses', values: [m.avgExp, m.prev.expense, m.cur.expense, m.mtd.expense], color: 'var(--neg)' }
+        <Card className="p-5 animate-rise">
+          <SectionHeader title="Revenue vs expenses" sub="Last three months and month to date" action={<Legend items={[{ label: 'Revenue', color: 'var(--chart-1)' }, { label: 'Expenses', color: 'var(--chart-2)', dashed: true }]} />} />
+          <AreaChart height={280} labels={['3 mo avg', '2 mo ago', 'Last month', 'This month']} series={[
+            { name: 'Revenue', values: [m.avgRev, m.prev.income, m.cur.income, m.mtd.income], color: 'var(--chart-1)' },
+            { name: 'Expenses', values: [m.avgExp, m.prev.expense, m.cur.expense, m.mtd.expense], color: 'var(--chart-2)', dashed: true, fill: false },
           ]} />
-        </div>
+        </Card>
       )}
     </div>
   );
