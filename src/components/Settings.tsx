@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, LogOut } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { findCurrency, symbolOf } from '../engine/currency';
 import { CurrencyPicker } from './CurrencyPicker';
@@ -75,6 +75,15 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       <button onClick={reset} className="mt-4 text-[13px] font-medium text-negative/90 hover:text-negative">Reset workspace</button>
+
+      <Label>Sign Out</Label>
+      <div className="flex items-center gap-4 border-y border-border py-4 opacity-60">
+        <LogOut className="size-5 text-foreground-subtle shrink-0" />
+        <div>
+          <div className="text-[15px] font-medium">Sign out</div>
+          <div className="text-[13px] text-foreground-subtle">Sign out of your Fyza workspace</div>
+        </div>
+      </div>
     </Drawer>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cur } from '../engine/currency';
 import { Landmark, CreditCard, HandCoins, ArrowDownLeft, ArrowUpRight, Repeat, Target, Plane, ArrowLeftRight, TrendingUp, Building2, Home, Car, Shapes, ChevronLeft, Sparkles } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { ymd, today, inr, addDays } from '../engine/format';
@@ -76,7 +77,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
   const autoTrip = () => {
     const days = tripDays({ start: v.start, end: v.end } as any);
     const est = estimateTrip(v.destination || '', days);
-    setV((p) => ({ ...p, ...Object.fromEntries(TRIP_PARTS.map((x) => [`b_${x}`, est[x]])) }));
+    setV((p) => ({ ...p, ...Object.fromEntries(TRIP_PARTS.map((x) => [`b_${x}`, est[x]])), isEstimated: true }));
   };
 
   const runNl = async () => {
@@ -314,31 +315,62 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
       
       case 'trip': {
         const total = TRIP_PARTS.reduce((s, p) => s + (+v[`b_${p}`] || 0), 0);
+        const days = tripDays({ start: v.start, end: v.end } as any);
+        
         return (
-          <div className="flex flex-col gap-5">
-            <Field label="Destination">
-              <Input autoFocus placeholder="Goa, Paris, Tokyo..." value={v.destination || ''} onChange={(e) => set('destination', e.target.value)} />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="From Date">
-                <Input type="date" value={v.start || ''} onChange={(e) => set('start', e.target.value)} />
-              </Field>
-              <Field label="To Date">
-                <Input type="date" value={v.end || ''} onChange={(e) => set('end', e.target.value)} />
-              </Field>
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1">
+              <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">New Trip</div>
+              <input autoFocus type="text" className="w-full bg-transparent font-display text-[48px] font-semibold leading-tight text-foreground outline-none placeholder:text-border-strong" placeholder="Destination" value={v.destination || ''} onChange={(e) => set('destination', e.target.value)} />
             </div>
             
-            <div className="flex items-center justify-between p-4 rounded-xl bg-surface-muted border border-border">
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Trip budget · {tripDays({ start: v.start, end: v.end } as any)} days</div><div className="text-[20px] font-semibold">{inr(total)}</div></div>
-              <Button size="sm" onClick={autoTrip}><Sparkles className="size-4 mr-1.5" /> Estimate for me</Button>
+            <div className="flex flex-col gap-3">
+              <div className="text-[13px] font-medium text-foreground">Dates</div>
+              <div className="flex items-center gap-4">
+                <Input type="date" value={v.start || ''} onChange={(e) => {
+                  set('start', e.target.value);
+                  if (v.end && e.target.value > v.end) set('end', e.target.value);
+                }} />
+                <span className="text-foreground-subtle">→</span>
+                <Input type="date" value={v.end || ''} onChange={(e) => {
+                  if (v.start && e.target.value < v.start) set('start', e.target.value);
+                  set('end', e.target.value);
+                }} />
+                {days > 0 && <span className="text-[13.5px] font-medium text-foreground-muted ml-2">{days} day{days !== 1 && 's'}</span>}
+              </div>
             </div>
+            
+            <div className="mt-2 flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Trip Budget</div>
+                  <div className="text-[28px] font-semibold text-foreground mt-0.5">{inr(total)}</div>
+                </div>
+                <Button size="sm" onClick={() => {
+                  if (v.isEstimated && total > 0 && !window.confirm("This will replace your current edits with a new estimate. Continue?")) return;
+                  autoTrip();
+                }}><Sparkles className="size-4 mr-1.5" /> Estimate for me</Button>
+              </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {TRIP_PARTS.map((p) => (
-                <Field key={p} label={p[0].toUpperCase() + p.slice(1)}>
-                  <Input type="number" placeholder="0" value={v[`b_${p}`] || ''} onChange={(e) => set(`b_${p}`, e.target.value)} />
-                </Field>
-              ))}
+              {v.isEstimated && (
+                <div className="text-[13px] text-foreground-subtle bg-surface-muted/50 p-3 rounded-lg border border-border">
+                  Estimated starting point for {days} days. Adjust anything to match your plan.
+                </div>
+              )}
+
+              <div className="flex flex-col divide-y divide-border border-y border-border">
+                {TRIP_PARTS.map((p) => (
+                  <div key={p} className="flex items-center justify-between py-3 transition-colors hover:bg-surface-muted/30 -mx-4 px-4 sm:-mx-6 sm:px-6">
+                    <label htmlFor={`trip_b_${p}`} className="text-[14px] font-medium text-foreground capitalize cursor-pointer flex-1">{p}</label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-3 text-[14px] text-foreground-subtle font-medium">{cur()}</span>
+                      <input id={`trip_b_${p}`} type="number" placeholder="0" className="w-[120px] bg-transparent text-right text-[15px] font-medium text-foreground outline-none pl-6 pr-3 py-1.5 rounded-md hover:bg-surface-muted focus:bg-surface-muted focus:ring-2 focus:ring-accent-soft transition-all" value={v[`b_${p}`] || ''} onChange={(e) => {
+                        set(`b_${p}`, e.target.value);
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         );

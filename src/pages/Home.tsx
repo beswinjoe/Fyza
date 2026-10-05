@@ -3,7 +3,7 @@ import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, Alert
 import { useStore } from '../engine/store';
 import { today, mkey, inr, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
 import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
-import { Money, Bar, Icon, AreaChart, BarsChart, Seg, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
+import { Money, Bar, Icon, AreaChart, BarsChart, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
 import { TxRow } from './Activity';
 import { BusinessHero } from './Business';
 import { AppState } from '../types/app';
@@ -96,27 +96,50 @@ function PersonalHero({ state }: { state: AppState }) {
 /* ---------- Cards ---------- */
 export function FlowCard({ state, world }: { state: AppState; world: World }) {
   const [mode, setMode] = useState('forecast');
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const hist = history(state, world, 6);
   const fc = forecast(state, world, 6);
   return (
     <Card className="p-5">
-      <SectionHeader title={mode === 'forecast' ? 'Where you’re heading' : 'Where your money went'}
-        sub={mode === 'forecast' ? <>Projected balance by {fc[5].label}: <b className="num font-semibold text-foreground">{inr(fc[5].balance, { compact: true })}</b></> : 'Income vs spending, last 6 months'}
-        action={<Seg size="sm" label="Timeframe" value={mode} onChange={setMode} options={[{ value: 'past', label: 'Past' }, { value: 'forecast', label: 'Future' }]} />} />
+      <div className="flex items-end justify-between mb-6">
+        <div>
+          <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle mb-1">{mode === 'forecast' ? "Where you're heading" : 'Past 6 months'}</div>
+          {mode === 'forecast' ? (
+            <div className="text-[28px] font-semibold text-foreground leading-tight">
+              {inr(fc[5].balance, { compact: true })} <span className="text-[15px] font-medium text-foreground-muted">by {fc[5].label}</span>
+            </div>
+          ) : (
+            <div className="text-[28px] font-semibold text-foreground leading-tight">History</div>
+          )}
+        </div>
+        <div className="bg-surface-muted rounded-lg p-0.5 flex">
+          <button className={cn("px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors", mode === 'past' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('past')}>Past</button>
+          <button className={cn("px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors", mode === 'forecast' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('forecast')}>Future</button>
+        </div>
+      </div>
+      
       {mode === 'forecast' ? (
-        <>
-          <AreaChart height={200} labels={fc.map((r) => r.label)} series={[{ name: 'Balance', values: fc.map((r) => r.balance), color: 'var(--chart-1)' }]} />
+        <div className="animate-fade-in">
+          <AreaChart height={200} labels={fc.map((r) => r.label)} series={[{ name: 'Balance', values: fc.map((r) => r.balance), color: 'var(--chart-1)' }]} externalHover={hoverIdx} onHover={setHoverIdx} />
           {fc.some((r) => r.pressure || r.tripList.length) && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {fc.filter((r) => r.trips > 0 || r.pressure || r.tripList.length).slice(0, 3).map((r) => (
-                <Badge key={r.key} tone={r.pressure ? 'warning' : 'neutral'}>
-                  {r.tripList.length ? <Plane /> : <AlertTriangle />}
-                  {r.label}: {r.tripList.length ? `${r.tripList.map((t) => t.name).join(', ')} +${inr(r.tripList.reduce((s, t) => s + t.amount, 0), { compact: true })}` : 'tight month'}
-                </Badge>
-              ))}
+            <div className="mt-6 border-t border-border pt-4">
+              <div className="grid grid-cols-3 gap-4">
+                {fc.filter((r) => r.trips > 0 || r.pressure || r.tripList.length).slice(0, 3).map((r, i) => {
+                  const idx = fc.findIndex(x => x.key === r.key);
+                  const isHovered = hoverIdx === idx;
+                  return (
+                    <div key={r.key} className="anim-warning transition-opacity cursor-default" style={{ animationDelay: `${1.2 + i * 0.1}s` }} onMouseEnter={() => setHoverIdx(idx)} onMouseLeave={() => setHoverIdx(null)}>
+                      <div className={cn("text-[11px] font-medium uppercase tracking-wider mb-0.5 transition-colors", isHovered ? "text-foreground" : "text-foreground-subtle")}>{r.label}</div>
+                      <div className={cn("text-[13px] font-medium transition-colors", r.pressure ? (isHovered ? "text-warning" : "text-warning/80") : (isHovered ? "text-foreground" : "text-foreground-subtle"))}>
+                        {r.tripList.length ? `${r.tripList[0].name} ${r.tripList.length > 1 ? `+${r.tripList.length - 1}` : ''}` : 'Tight month'}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </>
+        </div>
       ) : (
         <>
           <BarsChart labels={hist.map((h) => h.label)} a={hist.map((h) => h.income)} b={hist.map((h) => h.expense)} highlight={5} />

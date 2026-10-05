@@ -418,15 +418,17 @@ function useWidth(init: number) {
 }
 
 const Tip = ({ left, top, w, children }: { left: number; top: number; w: number; children: ReactNode }) => (
-  <div className="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-border bg-surface-elevated px-3 py-2 text-meta shadow-pop"
-    style={{ left: Math.min(Math.max(left, 74), w - 74), top, transform: 'translate(-50%, calc(-100% - 10px))' }}>{children}</div>
+  <div className="pointer-events-none absolute z-10 min-w-[140px] rounded-lg border border-border bg-inverse px-3 py-2 text-[13px] font-medium text-inverse-foreground shadow-pop transition-all duration-200 ease-out"
+    style={{ left: Math.min(Math.max(left, 74), w - 74), top: Math.max(top, 30), transform: 'translate(-50%, calc(-100% - 10px))' }}>{children}</div>
 );
 
 interface AreaSeries { name: string; values: number[]; color: string; dashed?: boolean; fill?: boolean; width?: number }
 
-export function AreaChart({ labels, series, height = 200, split, fmt = (v: number) => inr(v, { compact: true }), showAxis = true }: { labels: string[]; series: AreaSeries[]; height?: number; split?: number; fmt?: (v: number) => string; showAxis?: boolean }) {
+export function AreaChart({ labels, series, height = 200, split, fmt = (v: number) => inr(v, { compact: true }), showAxis = true, externalHover, onHover }: { labels: string[]; series: AreaSeries[]; height?: number; split?: number; fmt?: (v: number) => string; showAxis?: boolean; externalHover?: number | null; onHover?: (i: number | null) => void }) {
   const [ref, w] = useWidth(600);
-  const [hover, setHover] = useState<number | null>(null);
+  const [internalHover, setInternalHover] = useState<number | null>(null);
+  const hover = externalHover !== undefined ? externalHover : internalHover;
+  const setHoverState = onHover || setInternalHover;
   const pad = { l: showAxis ? 48 : 4, r: 8, t: 12, b: showAxis ? 26 : 4 };
   const all = series.flatMap((s) => s.values).filter((v) => v != null && Number.isFinite(v));
   let min = Math.min(0, ...all), max = Math.max(...all, 1);
@@ -439,20 +441,20 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
   const step = Math.ceil(n / Math.max(2, Math.floor(w / 64)));
 
   return (
-    <div ref={ref} className="relative select-none" onMouseLeave={() => setHover(null)}
-      onMouseMove={(e) => { if (!ref.current) return; const r = ref.current.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left - pad.l) / (w - pad.l - pad.r)) * (n - 1)); setHover(Math.max(0, Math.min(n - 1, i))); }}>
+    <div ref={ref} className="relative select-none" onMouseLeave={() => setHoverState(null)}
+      onMouseMove={(e) => { if (!ref.current) return; const r = ref.current.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left - pad.l) / (w - pad.l - pad.r)) * (n - 1)); setHoverState(Math.max(0, Math.min(n - 1, i))); }}>
       <svg className="block w-full overflow-visible" width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(' and ') + ' chart'}>
         <defs>
           {series.map((s, k) => (
             <linearGradient key={k} id={`${gid}${k}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity={s.fill === false ? 0 : 0.16} />
+              <stop offset="0%" stopColor={s.color} stopOpacity={s.fill === false ? 0 : 0.08} />
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
           ))}
         </defs>
         {showAxis && ticks.map((t, i) => (
-          <g key={i}><line stroke="var(--chart-grid)" x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} strokeDasharray={i === 0 ? '' : '2 4'} />
-            <text x={pad.l - 10} y={y(t) + 4} textAnchor="end">{fmt(t)}</text></g>
+          <g key={i} className="anim-grid"><line stroke="var(--chart-grid)" strokeOpacity=".25" x1={pad.l} x2={w - pad.r} y1={y(t)} y2={y(t)} strokeDasharray={i === 0 ? '' : '2 4'} />
+            <text className="text-[10px] fill-foreground-subtle" x={pad.l - 10} y={y(t) + 3} textAnchor="end">{fmt(t)}</text></g>
         ))}
         {min < 0 && <line x1={pad.l} x2={w - pad.r} y1={y(0)} y2={y(0)} stroke="var(--negative)" strokeOpacity=".4" strokeDasharray="3 3" />}
         {split != null && split < n - 1 && <rect x={x(split)} y={pad.t} width={w - pad.r - x(split)} height={height - pad.t - pad.b} fill="var(--foreground)" opacity=".025" rx="4" />}
@@ -462,24 +464,24 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
           const area = `${line} L${x(n - 1)},${y(Math.max(min, 0))} L${x(0)},${y(Math.max(min, 0))} Z`;
           return (
             <g key={k}>
-              <path d={area} fill={`url(#${gid}${k})`} className="animate-fade-in" />
-              <path d={line} fill="none" stroke={s.color} strokeWidth={s.width || 1.75} strokeDasharray={s.dashed ? '4 5' : undefined} strokeLinecap="round"
-                style={!s.dashed ? { strokeDasharray: '3000', animation: 'draw 1.2s cubic-bezier(.2,.8,.2,1) both' } : undefined} />
+              <path d={area} fill={`url(#${gid}${k})`} className="anim-reveal-area" />
+              <path d={line} fill="none" stroke={s.color} strokeWidth={s.width || 1.5} strokeDasharray={s.dashed ? '4 5' : undefined} strokeLinecap="round"
+                className={!s.dashed ? "anim-draw" : ""} />
             </g>
           );
         })}
-        {showAxis && labels.map((l, i) => (i % step === 0 || i === n - 1) && <text key={i} x={x(i)} y={height - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>{l}</text>)}
+        {showAxis && labels.map((l, i) => (i % step === 0 || i === n - 1) && <text className="text-[10px] fill-foreground-subtle" key={i} x={x(i)} y={height - 6} textAnchor={i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}>{l}</text>)}
         {hover != null && (
-          <g>
-            <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={height - pad.b} stroke="var(--border-strong)" />
-            {series.map((s, k) => <circle key={k} cx={x(hover)} cy={y(s.values[hover])} r={3.5} fill="var(--surface)" stroke={s.color} strokeWidth="2" />)}
+          <g className="transition-opacity duration-200" style={{ opacity: hover != null ? 1 : 0 }}>
+            <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={height - pad.b} stroke="var(--border-strong)" className="transition-all duration-200 ease-out" />
+            {series.map((s, k) => <circle key={k} cx={x(hover)} cy={y(s.values[hover])} r={3.5} fill="var(--surface)" stroke={s.color} strokeWidth="2" className="transition-all duration-200 ease-out anim-point" />)}
           </g>
         )}
       </svg>
       {hover != null && (
         <Tip left={x(hover)} top={Math.min(...series.map((s) => y(s.values[hover])))} w={w}>
-          <div className="mb-1 text-foreground-subtle">{labels[hover]}</div>
-          {series.map((s, k) => <div key={k} className="flex items-center gap-2"><i className="size-1.5 rounded-full" style={{ background: s.color }} /><span className="text-foreground-muted">{s.name}</span><b className="num ml-auto pl-3 font-semibold">{fmt(s.values[hover])}</b></div>)}
+          <div className="mb-1 text-inverse-foreground/70">{labels[hover]}</div>
+          {series.map((s, k) => <div key={k} className="flex items-center gap-2"><span className="text-inverse-foreground">{s.name}</span><b className="num ml-auto pl-3 font-semibold">{fmt(s.values[hover])}</b></div>)}
         </Tip>
       )}
     </div>
