@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { Input, cn } from './ui';
 import { CurrencyPicker } from './CurrencyPicker';
-import welcomeImg from '../assets/welcome.jpg';
+import welcomeVid from '../assets/welcome.mp4';
 
 const PROFILES = [
   { id: 'personal', title: 'Personal', desc: 'Salary, rent, everyday spending, savings.' },
@@ -54,10 +54,14 @@ export default function Onboarding() {
     <main className="onb-atmos flex min-h-dvh flex-col p-3 lg:grid lg:h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:p-4">
       {/* Visual */}
       <section aria-hidden className="relative h-[38vh] min-h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] lg:h-full">
-        <img
-          src={welcomeImg}
-          alt=""
-          className="absolute inset-0 size-full animate-[welcomeZoom_24s_ease-out_forwards] object-cover object-[50%_45%]"
+        <video
+          ref={(v) => { if (v) v.playbackRate = 0.7; }}
+          src={welcomeVid}
+          autoPlay
+          muted
+          loop
+          playsInline
+          className="absolute inset-0 size-full object-cover object-[50%_50%]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-black/10" />
         <div className="absolute left-6 top-6 flex items-center gap-2 text-white/90 lg:left-8 lg:top-8">

@@ -77,13 +77,18 @@ export default function Settings({ onClose }: { onClose: () => void }) {
       <button onClick={reset} className="mt-4 text-[13px] font-medium text-negative/90 hover:text-negative">Reset workspace</button>
 
       <Label>Sign Out</Label>
-      <div className="flex items-center gap-4 border-y border-border py-4 opacity-60">
-        <LogOut className="size-5 text-foreground-subtle shrink-0" />
+      <button onClick={() => {
+        if (window.confirm("Sign out? Your data is currently stored locally and may not be accessible until you implement a backend.")) {
+          dispatch({ type: 'set', patch: { onboarded: false } });
+          onClose();
+        }
+      }} className="w-full group flex items-center gap-4 border-y border-border py-4 text-left transition-colors hover:bg-surface-muted/30">
+        <LogOut className="size-5 text-foreground-subtle shrink-0 group-hover:text-foreground transition-colors" />
         <div>
-          <div className="text-[15px] font-medium">Sign out</div>
-          <div className="text-[13px] text-foreground-subtle">Sign out of your Fyza workspace</div>
+          <div className="text-[15px] font-medium text-foreground">Sign out</div>
+          <div className="text-[13px] text-foreground-subtle group-hover:text-foreground-muted transition-colors">Sign out of your Fyza workspace</div>
         </div>
-      </div>
+      </button>
     </Drawer>
   );
 }
