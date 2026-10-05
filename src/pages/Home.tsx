@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins, Wallet } from 'lucide-react';
+import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { today, mkey, inr, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
 import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
@@ -8,6 +8,7 @@ import { TxRow } from './Activity';
 import { BusinessHero } from './Business';
 import { AppState } from '../types/app';
 import { World, Goal, Account, Card as CardType, Loan } from '../types/finance';
+import welcomeImg from '../assets/welcome.jpg';
 
 type OpenItem = (t: string, id: string) => void;
 
@@ -155,35 +156,55 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
     { icon: Compass, title: 'Plans', empty: 'No forecast yet', d: 'Add income and spending and Fyza will project your future.', cta: 'Add recurring income', on: () => openAdd('recurring'), secondary: { label: 'Open Plans', on: () => go('plans') } },
   ];
   return (
-    <div className="flex flex-col gap-5 stagger">
-      <Card className="relative overflow-hidden px-8 py-10 max-md:px-5 max-md:py-8">
-        <div className="pointer-events-none absolute -right-32 -top-32 size-96 rounded-full bg-accent-soft blur-3xl" aria-hidden />
-        <div className="relative max-w-[520px]">
-          <div className="mb-5 grid size-11 place-items-center rounded-xl border border-border bg-surface-muted shadow-card"><Wallet className="size-5 text-foreground-muted" strokeWidth={1.5} /></div>
-          <h2 className="font-display text-[28px] font-semibold leading-tight tracking-[-0.03em] max-md:text-[24px]">Start with what you know.</h2>
-          <p className="mt-3 text-[14.5px] leading-6 text-foreground-muted">Add income, spending, savings, or anything else manually. Fyza will build your financial picture as you go.</p>
-          <div className="mt-7 flex flex-wrap items-center gap-2">
-            <Button variant="primary" size="lg" onClick={() => openAdd('income')}><Plus />Add income</Button>
-            <Button variant="primary" size="lg" onClick={() => openAdd('expense')}><Plus />Add expense</Button>
-            <Button variant="ghost" size="lg" onClick={openPalette}><AIMark className="size-4" />Ask Fyza</Button>
+    <div className="flex flex-col gap-14 stagger max-md:gap-10">
+      <section className="grid items-stretch gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-14">
+        <div className="flex flex-col justify-center py-2 lg:py-8">
+          <div className="mb-6 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Chapter one — Begin</div>
+          <h2 className="font-display text-[clamp(44px,5.6vw,80px)] font-semibold leading-[0.95] tracking-[-0.05em]">
+            Start with<br /><span className="text-foreground-subtle">what you know.</span>
+          </h2>
+          <p className="mt-7 max-w-[420px] text-[16px] leading-[1.6] text-foreground-muted">Add income, spending, savings, or anything else manually. Fyza will build your financial picture as you go.</p>
+          <div className="mt-10 flex flex-wrap items-center gap-3">
+            <button onClick={() => openAdd('income')} className="group inline-flex h-13 items-center gap-3 rounded-full bg-foreground py-3 pl-6 pr-2 text-[15px] font-medium text-background transition-all duration-300 hover:gap-4 active:scale-[0.98]">
+              Add income
+              <span className="grid size-8 place-items-center rounded-full bg-background/15"><ArrowRight className="size-4" /></span>
+            </button>
+            <button onClick={() => openAdd('expense')} className="inline-flex h-13 items-center gap-2 rounded-full border border-border-strong px-6 py-3 text-[15px] font-medium transition-colors hover:border-foreground">
+              <Plus className="size-4" />Add expense
+            </button>
           </div>
-          <div className="mt-5">
-            <Button variant="ghost" size="sm" onClick={() => openAdd('account')}>Add an account (optional)</Button>
+          <div className="mt-6 flex flex-wrap items-center gap-6 text-[13.5px] text-foreground-subtle">
+            <button onClick={openPalette} className="inline-flex items-center gap-2 transition-colors hover:text-foreground"><AIMark className="size-3.5" />Ask Fyza</button>
+            <button onClick={() => openAdd('account')} className="transition-colors hover:text-foreground">Add an account <span className="opacity-60">(optional)</span></button>
           </div>
         </div>
-      </Card>
-      <div className={cn('grid gap-5 md:grid-cols-2', !biz && 'xl:grid-cols-4')}>
-        {sections.map((s) => (
-          <Card key={s.title} className="flex flex-col p-5">
-            <div className="flex items-center gap-2 text-meta font-medium text-foreground-subtle"><s.icon className="size-3.5" strokeWidth={1.75} />{s.title}</div>
-            <div className="mt-6 text-title font-semibold">{s.empty}</div>
-            <p className="mt-1.5 flex-1 text-[13px] leading-5 text-foreground-subtle">{s.d}</p>
-            <div className="mt-5 flex items-center gap-3">
-              <LinkButton onClick={s.on} className="text-foreground"><Plus />{s.cta}</LinkButton>
-            </div>
-          </Card>
-        ))}
-      </div>
+        <div aria-hidden className="relative h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] sm:h-[340px] lg:h-auto lg:min-h-[460px]">
+          <img src={welcomeImg} alt="" className="absolute inset-0 size-full animate-[welcomeZoom_24s_ease-out_forwards] object-cover object-[50%_45%]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+          <div className="absolute inset-x-6 bottom-6 text-white">
+            <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Manual-first</div>
+            <p className="max-w-[300px] font-display text-[19px] font-medium leading-[1.3] tracking-[-0.02em]">No bank connection required. Just the truth, as you know it.</p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">What comes next</div>
+        <ol className="border-t border-border">
+          {sections.map((s, i) => (
+            <li key={s.title}>
+              <button onClick={s.on} className="group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-border py-6 text-left md:grid-cols-[64px_220px_minmax(0,1fr)_auto]">
+                <span className="num text-[13px] text-foreground-subtle">0{i + 1}</span>
+                <span className="font-display text-[22px] font-semibold tracking-[-0.03em] transition-colors group-hover:text-foreground max-md:text-[19px]">{s.title}</span>
+                <span className="hidden text-[14px] text-foreground-subtle md:block">{s.d}</span>
+                <span className="inline-flex items-center gap-2 text-[13.5px] font-medium text-foreground-muted transition-all group-hover:gap-3 group-hover:text-foreground">
+                  <span className="max-sm:hidden">{s.cta}</span><ArrowRight className="size-4" />
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      </section>
     </div>
   );
 }

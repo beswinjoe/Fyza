@@ -178,3 +178,6 @@
     scroll-behavior: auto !important;
   }
 }
+@keyframes welcomeZoom { from { transform: scale(1.08); } to { transform: scale(1); } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { [class*="welcomeZoom"], [class*="fadeUp"] { animation: none !important; } }
