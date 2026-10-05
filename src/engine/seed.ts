@@ -6,7 +6,7 @@ import { Profile } from '../types/finance';
 export const DEFAULT_CATEGORIES = ['Food', 'Groceries', 'Transport', 'Rent', 'Bills', 'Subscriptions', 'Shopping', 'Entertainment', 'Health', 'Education', 'Travel', 'EMI', 'Other'];
 
 export const EMPTY: AppState = {
-  onboarded: false, user: { name: '' }, currency: 'INR', profiles: [], world: 'personal',
+  onboarded: false, user: { name: '' }, currency: 'USD', profiles: [], world: 'personal',
   accounts: [], cards: [], loans: [], transactions: [], recurring: [], goals: [], trips: [], invoices: [], scenarios: [], aiHistory: [],
   categories: DEFAULT_CATEGORIES,
 };

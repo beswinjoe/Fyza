@@ -14,7 +14,7 @@ const PROFILES = [
 ];
 
 const CAPTIONS = [
-  { eyebrow: 'No. 01 — Clarity', line: 'Every rupee, accounted for. Every plan, within reach.' },
+  { eyebrow: 'No. 01 — Clarity', line: 'Every money, accounted for. Every plan, within reach.' },
   { eyebrow: 'No. 02 — Shape', line: 'One workspace that bends to the way you actually live.' },
   { eyebrow: 'No. 03 — Global', line: 'Speak your money’s language.' },
   { eyebrow: 'No. 04 — Begin', line: 'The quiet confidence of knowing where you stand.' },
@@ -39,7 +39,7 @@ export default function Onboarding() {
   const { dispatch } = useStore();
   const [name, setName] = useState('');
   const [sel, setSel] = useState(['personal']);
-  const [currency, setCurrency] = useState('INR');
+  const [currency, setCurrency] = useState('USD');
   const [step, setStep] = useState(0); // 0 welcome · 1 profiles · 2 currency · 3 name
 
   const toggle = (id: string) => setSel((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);

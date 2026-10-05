@@ -39,7 +39,7 @@ export const CURRENCIES: CurrencyDef[] = [
   { code: 'TRY', name: 'Turkish Lira', locale: 'tr-TR' },
 ];
 
-export const DEFAULT_CURRENCY = 'INR';
+export const DEFAULT_CURRENCY = 'USD';
 
 let current: CurrencyDef = CURRENCIES[0];
 let nf = new Intl.NumberFormat(current.locale, { maximumFractionDigits: 0 });
