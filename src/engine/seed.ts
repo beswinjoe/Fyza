@@ -6,16 +6,17 @@ import { Profile } from '../types/finance';
 export const DEFAULT_CATEGORIES = ['Food', 'Groceries', 'Transport', 'Rent', 'Bills', 'Subscriptions', 'Shopping', 'Entertainment', 'Health', 'Education', 'Travel', 'EMI', 'Other'];
 
 export const EMPTY: AppState = {
-  onboarded: false, user: { name: '' }, profiles: [], world: 'personal',
+  onboarded: false, user: { name: '' }, currency: 'INR', profiles: [], world: 'personal',
   accounts: [], cards: [], loans: [], transactions: [], recurring: [], goals: [], trips: [], invoices: [], scenarios: [], aiHistory: [],
   categories: DEFAULT_CATEGORIES,
 };
 
 /** Creates a fresh, empty workspace for a newly onboarded user. */
-export function buildSeed({ name, profiles }: { name: string; profiles: string[] }): AppState {
+export function buildSeed({ name, profiles, currency }: { name: string; profiles: string[]; currency?: string }): AppState {
   const s = structuredClone(EMPTY) as AppState;
   s.user.name = name.trim();
   s.profiles = profiles as Profile[];
+  if (currency) s.currency = currency;
   s.onboarded = true;
   return s;
 }

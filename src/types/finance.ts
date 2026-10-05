@@ -75,6 +75,7 @@ export interface Goal {
   current: number;
   monthly: number;
   targetDate: string;
+  world?: World;
 }
 
 export interface Trip {

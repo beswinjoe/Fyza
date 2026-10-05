@@ -4,6 +4,8 @@ import { AIResult } from './ai';
 export interface AppState {
   onboarded: boolean;
   user: { name: string };
+  /** Workspace base currency (ISO 4217). All stored amounts are in this currency. */
+  currency: string;
   profiles: Profile[];
   world: World;
   accounts: Account[];

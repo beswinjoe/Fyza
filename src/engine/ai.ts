@@ -1,3 +1,4 @@
+import { cur, activeCurrency } from './currency';
 // AI layer — local natural-language understanding over the financial engine.
 import { today, ymd, mkey, addMonths, monthLabel, MONTHS_LONG, inr, uid, daysInMonth, addDays } from './format';
 import { emi, forecast, available, monthSummary, studentCycle, baselineVariable, businessMetrics, W } from './finance';
@@ -10,7 +11,7 @@ import * as tools from './aiTools';
 
 const UNITS: Record<string, number> = { k: 1e3, thousand: 1e3, l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
 export function amounts(text: string): number[] {
-  const re = /(₹|rs\.?|inr)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|thousand|cr|k|l)?\b(\s*(%|percent|days?|years?|yrs?|months?|st|nd|rd|th|am|pm))?/gi;
+  const re = /([₹$€£¥]|rs\.?|inr|usd|eur|gbp|aed|cad|aud|sgd)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|thousand|cr|k|l)?\b(\s*(%|percent|days?|years?|yrs?|months?|st|nd|rd|th|am|pm))?/gi;
   const out = [];
   let m;
   while ((m = re.exec(text))) {
@@ -91,7 +92,7 @@ export function localInterpret(text: string, state: AppState): AIResult {
     if (/hire|employee|salary of/.test(t) && amt && !to) { sc.expenseDelta = amt; desc.push(`New hire at ${inr(amt)}/mo`); }
     if (/buy|purchase|spend/.test(t) && amt) { sc.oneTime = amt; desc.push(`One-time purchase ${inr(amt)}`); }
     if (/save.*(every|per|a) month/.test(t) && amt) { sc.monthlySave = amt; sc.expenseDelta = (sc.expenseDelta || 0) + amt; desc.push(`Set aside ${inr(amt)}/mo`); }
-    if (!desc.length) return resp({ kind: 'answer', title: 'Try a more specific scenario', summary: 'For example: “What if my salary becomes ₹1 lakh?” or “What if my rent increases by ₹5,000?”' });
+    if (!desc.length) return resp({ kind: 'answer', title: 'Try a more specific scenario', summary: `For example: “What if my salary becomes ${cur()}100,000?” or “What if my rent increases by ${cur()}5,000?”` });
     const base = forecast(state, world, 6), alt = forecast(state, world, 6, sc);
     const d = alt[5].balance - base[5].balance;
     const minAlt = Math.min(...alt.map((r) => r.balance));
@@ -124,9 +125,9 @@ export function localInterpret(text: string, state: AppState): AIResult {
         chart: chartOf(forecast(state, world, 6), alt),
       });
     }
-    if (!amt) return resp({ kind: 'answer', title: 'How much does it cost?', summary: 'Tell me the price — e.g. “Can I afford a ₹70,000 laptop?”' });
+    if (!amt) return resp({ kind: 'answer', title: 'How much does it cost?', summary: `Tell me the price — e.g. “Can I afford a ${cur()}70,000 laptop?”` });
     const buffer = Math.max(monthlyExp, 1);
-    const item = (t.match(/afford (?:a |an |the )?(?:₹?[\d,.]+\s*(?:k|l|lakhs?)?\s*)?([a-z ]+?)(?:\?|$| for| in| now)/) || [])[1]?.trim() || 'this';
+    const item = (t.match(/afford (?:a |an |the )?(?:[₹$€£¥]?[\d,.]+\s*(?:k|l|lakhs?)?\s*)?([a-z ]+?)(?:\?|$| for| in| now)/) || [])[1]?.trim() || 'this';
     if (avail - amt >= buffer) {
       return resp({
         kind: 'answer', title: `Yes — you can afford the ${item}`, tone: 'pos',
@@ -314,7 +315,7 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const day = +(t.match(/on the (\d+)/) || [undefined, isIncome ? 1 : now.getDate()])[1];
     const name = isIncome
       ? (t.match(/pocket money|salary|stipend|allowance|retainer|rent income|freelance/) || ['Income'])[0]
-      : (t.match(/pay (?:₹?[\d,.]+\s*(?:k|l)?\s*)?(?:for )?([a-z ]+?)(?: on| every| monthly| each|$)/) || t.match(/for ([a-z ]+?)(?: on| every|$)/) || [undefined, catOf(t)])[1];
+      : (t.match(/pay (?:[₹$€£¥]?[\d,.]+\s*(?:k|l)?\s*)?(?:for )?([a-z ]+?)(?: on| every| monthly| each|$)/) || t.match(/for ([a-z ]+?)(?: on| every|$)/) || [undefined, catOf(t)])[1];
     const weekly = /week/.test(t);
     const amount = weekly ? Math.round(amt * 52 / 12) : amt;
     const acc = state.accounts.find((a) => W(a) === world);
@@ -353,14 +354,14 @@ export function localInterpret(text: string, state: AppState): AIResult {
 
   return resp({
     kind: 'answer', title: 'I can help with that soon',
-    summary: 'Try logging money (“I spent ₹850 on dinner”), setting up recurring items, creating trips or goals, or asking “Can I afford…”, “How much can I save by June?”, or “What if…”.',
+    summary: `Try logging money (“I spent ${cur()}850 on dinner”), setting up recurring items, creating trips or goals, or asking “Can I afford…”, “How much can I save by June?”, or “What if…”.`,
   });
 }
 
 export const SUGGESTIONS = {
-  student: ['I spent ₹180 on lunch', 'How much can I spend this week?', 'I get ₹8,000 pocket money every month', 'Can I afford a ₹70,000 laptop?', 'I\'m going to Goa for 5 days in December'],
-  personal: ['I spent ₹850 on dinner', 'Can I afford a ₹70,000 laptop?', 'How much can I save by June?', 'What if my salary becomes ₹1 lakh?', 'I took a ₹5 lakh loan at 9% for 3 years', 'I want to save ₹3 lakh by next year', 'Why did I spend more this month?'],
-  business: ['Why did my profit drop?', 'Can I afford to hire someone for ₹40k/month?', 'What if revenue falls 20%?', 'Transfer ₹40,000 to personal', 'How much will I have in 6 months?'],
+  get student() { return [`I spent ${cur()}180 on lunch`, 'How much can I spend this week?', `I get ${cur()}8,000 pocket money every month`, `Can I afford a ${cur()}70,000 laptop?`, 'I\'m going to Goa for 5 days in December']; },
+  get personal() { return [`I spent ${cur()}850 on dinner`, `Can I afford a ${cur()}70,000 laptop?`, 'How much can I save by June?', `What if my salary becomes ${cur()}100,000?`, `I took a ${cur()}500,000 loan at 9% for 3 years`, `I want to save ${cur()}300,000 by next year`, 'Why did I spend more this month?']; },
+  get business() { return ['Why did my profit drop?', `Can I afford to hire someone for ${cur()}40k/month?`, 'What if revenue falls 20%?', `Transfer ${cur()}40,000 to personal`, 'How much will I have in 6 months?']; },
 };
 
 export async function interpret(text: string, state: AppState): Promise<AIResult> {
@@ -379,9 +380,11 @@ export async function interpret(text: string, state: AppState): Promise<AIResult
         { role: 'system', content: `You are Fyza, a smart, premium AI financial assistant (inspired by Apple, Notion, Linear). Your job is to understand the user's intent and use the provided tools to fetch financial data or perform actions.
 - NEVER invent numbers. ALWAYS call a tool when financial calculations, adding transactions, forecasting, or checking affordability is required.
 - If a user provides incomplete information (e.g. "Can I afford a MacBook?"), DO NOT call a tool with placeholder values. Instead, ask for clarification ("What price are you considering?").
-- If the user asks a general question about their money (e.g., "How much did I spend this month?"), call getFinancialContext().
+- If the user asks a general question about their money, call getFinancialContext().
+- If the user asks about specific past spending (e.g. "how much did I spend on food?"), call searchTransactions().
 - Keep your tone concise, calm, precise, and expensive.
-- The current date is ${today().toISOString().split('T')[0]}.` },
+- The current date is ${today().toISOString().split('T')[0]}.
+- The workspace currency is ${activeCurrency().name} (${activeCurrency().code}, symbol ${cur()}). All amounts are in this currency. Never convert currencies or assume exchange rates.` },
         ...history,
         { role: 'user', content: text }
       ],
@@ -414,16 +417,17 @@ export async function interpret(text: string, state: AppState): Promise<AIResult
       case 'createGoal': toolResult = tools.createGoal(state, args.name, args.target, args.targetDateYMD); break;
       case 'transferMoney': toolResult = tools.transferMoney(state, args.amount, args.toPersonal); break;
       case 'getFinancialContext': toolResult = tools.getFinancialContext(state); break;
+      case 'searchTransactions': toolResult = tools.searchTransactions(state, args.keyword, args.category, args.type); break;
     }
 
     const synthesisResponse = await ai.chat.completions.create({
       model: 'openai/gpt-oss-20b',
       messages: [
-        { role: 'system', content: `Summarize the financial tool response. Be concise, premium, and calm. Keep the tone like Apple × Linear. Return the response in JSON format.` },
+        { role: 'system', content: `Summarize the financial tool response. Be concise, premium, and calm. Keep the tone like Apple × Linear. Return the response in JSON format. Format money in ${activeCurrency().code} using the symbol ${cur()}; use only numbers present in the tool response.` },
         ...history, 
         { role: 'user', content: text },
         msg,
-        { role: 'tool', tool_call_id: call.id, content: JSON.stringify({ summary: toolResult.summary }) }
+        { role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult) }
       ],
       response_format: { type: 'json_object' }
     });

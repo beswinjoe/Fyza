@@ -9,5 +9,5 @@ export type Action =
   | AIAction
   | { type: 'set'; patch: Partial<AppState> }
   | { type: 'batch'; ops: Action[] }
-  | { type: 'seed'; opts: { name: string; profiles: string[] } }
+  | { type: 'seed'; opts: { name: string; profiles: string[]; currency?: string } }
   | { type: 'reset' };

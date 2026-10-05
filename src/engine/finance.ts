@@ -1,3 +1,4 @@
+import { money } from './currency';
 // Financial engine — pure functions over the state model. No UI code here.
 import { today, mkey, parseDate, addMonths, daysInMonth, daysBetween, monthsBetween, monthLabel, ymd, addDays } from './format';
 import { AppState } from '../types/app';
@@ -169,8 +170,9 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
     const m = addMonths(now, i), key = mkey(m);
     const dim = daysInMonth(m.getFullYear(), m.getMonth());
     const remFrac = i === 0 ? (dim - now.getDate()) / dim : 1;
-    let income = 0, recurringExp = 0, emis = 0, trips = 0, oneTime = 0;
+    let income = 0, recurringExp = 0, emis = 0, trips = 0, oneTime = 0, goals = 0;
     const tripList = [];
+    const goalList = [];
     for (const r of state.recurring.filter(inWorld(world))) {
       if (i === 0 && (+(r.day || 1)) <= now.getDate()) continue;
       if (r.type === 'income') income += r.amount; else recurringExp += r.amount;
@@ -186,6 +188,13 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
         trips += left; tripList.push({ name: t.destination, amount: tripTotal(t) });
       }
     }
+    for (const g of state.goals.filter(inWorld(world))) {
+      const stats = goalStats(g, now);
+      if (stats.left > 0 && stats.monthsNeeded > 0) {
+        goals += (g.monthly || stats.required || 0);
+        goalList.push({ name: g.name, amount: (g.monthly || stats.required || 0) });
+      }
+    }
     let variable = variableBase * remFrac;
     
     if (i >= 1 || remFrac > 0) {
@@ -196,8 +205,8 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
       if (sc.oneTime && i === (sc.oneTimeMonth || 0)) oneTime += sc.oneTime;
       variable *= sc.variablePct ? 1 + sc.variablePct : 1;
     }
-    const saved = sc.monthlySave && i >= 1 ? sc.monthlySave : 0;
-    const expense = recurringExp + emis + trips + variable + oneTime;
+    const saved = (sc.monthlySave && i >= 1 ? sc.monthlySave : 0) + goals;
+    const expense = recurringExp + emis + trips + variable + oneTime + goals;
     const net = income - expense;
     bal += net;
     let actualIncome = 0, actualExpense = 0;
@@ -205,7 +214,7 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
     const normal = recurringExp + emis + variable + (i === 0 ? actualExpense : 0);
     rows.push({
       key, label: monthLabel(key), income: income + actualIncome, expense: expense + actualExpense,
-      recurring: recurringExp, emis, trips, tripList, variable, oneTime, saved, net: income + actualIncome - (expense + actualExpense),
+      recurring: recurringExp, emis, trips, tripList, goals, goalList, variable, oneTime, saved, net: income + actualIncome - (expense + actualExpense),
       balance: bal, normal, pressure: expense + actualExpense > (income + actualIncome) * 0.95,
     });
   }
@@ -276,10 +285,10 @@ export function insights(state: AppState, world: World, now = today()) {
     const dlt = v - (full2.byCategory[c] || 0);
     if (!top || dlt > top.dlt) top = { c, dlt, v };
   }
-  if (top && top.dlt > 500) out.push({ tone: 'neutral', text: `${top.c} rose by ₹${Math.round(top.dlt).toLocaleString('en-IN')} in ${monthLabel(lastKey, true).split(' ')[0]}.` });
+  if (top && top.dlt > 500) out.push({ tone: 'neutral', text: `${top.c} rose by ${money(top.dlt)} in ${monthLabel(lastKey, true).split(' ')[0]}.` });
   const fc = forecast(state, world, 4, {}, now);
   const tripMonth = fc.find((r) => r.trips > 0 || r.tripList.length);
-  if (tripMonth) out.push({ tone: 'neutral', text: `${tripMonth.tripList.map((t) => t.name).join(', ')} pushes ${monthLabel(tripMonth.key, true).split(' ')[0]} spending to ₹${Math.round(tripMonth.expense).toLocaleString('en-IN')}.` });
+  if (tripMonth) out.push({ tone: 'neutral', text: `${tripMonth.tripList.map((t) => t.name).join(', ')} pushes ${monthLabel(tripMonth.key, true).split(' ')[0]} spending to ${money(tripMonth.expense)}.` });
   const low = fc.find((r) => r.balance < 0);
   if (low) out.push({ tone: 'neg', text: `Balance may go negative in ${monthLabel(low.key, true)}.` });
   return out;

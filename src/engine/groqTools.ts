@@ -160,5 +160,16 @@ export const groqTools: any[] = [
       description: 'Get general financial context to answer arbitrary questions about spending, balances, or trends',
       parameters: { type: 'object', properties: {} }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'searchTransactions',
+      description: 'Search the user\'s transactions by keyword, category, or type to answer specific questions',
+      parameters: {
+        type: 'object',
+        properties: { keyword: { type: 'string' }, category: { type: 'string' }, type: { type: 'string', enum: ['income', 'expense'] } }
+      }
+    }
   }
 ];

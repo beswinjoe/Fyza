@@ -2,6 +2,7 @@
 import { createContext, useContext, useEffect, useReducer, ReactNode } from 'react';
 import { EMPTY, buildSeed } from './seed';
 import { uid } from './format';
+import { setActiveCurrency } from './currency';
 import { AppState } from '../types/app';
 import { Action } from '../types/store';
 
@@ -31,6 +32,8 @@ function load(): AppState {
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, load);
+  // Keep the formatter in sync before children render so every amount uses the workspace currency.
+  setActiveCurrency(state.currency);
   useEffect(() => { localStorage.setItem(KEY, JSON.stringify(state)); }, [state]);
   return <Ctx.Provider value={{ state, dispatch }}>{children}</Ctx.Provider>;
 }

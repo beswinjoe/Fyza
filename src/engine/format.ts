@@ -33,17 +33,7 @@ export const relDay = (s: string | Date) => {
   return fmtDate(s);
 };
 
-const nf = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
-export const inr = (n: number | string, { compact = false, sign = false }: { compact?: boolean; sign?: boolean } = {}) => {
-  const v = Math.round(Number(n) || 0);
-  const a = Math.abs(v);
-  let body;
-  if (compact && a >= 1e7) body = `${+(a / 1e7).toFixed(2)}Cr`;
-  else if (compact && a >= 1e5) body = `${+(a / 1e5).toFixed(2)}L`;
-  else if (compact && a >= 1e4) body = `${+(a / 1e3).toFixed(1)}k`;
-  else body = nf.format(a);
-  const s = v < 0 ? '−' : sign && v > 0 ? '+' : '';
-  return `${s}₹${body}`;
-};
+// Money formatting lives in ./currency (workspace base currency). `inr` kept as alias for existing call sites.
+export { money as inr, money, cur } from './currency';
 export const pct = (n: number, digits = 0) => `${(n * 100).toFixed(digits)}%`;
 export const uid = () => Math.random().toString(36).slice(2, 10);

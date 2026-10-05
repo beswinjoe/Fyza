@@ -1,3 +1,4 @@
+import { cur } from '../engine/currency';
 import { useEffect, useId, useMemo, useRef, useState, ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, forwardRef } from 'react';
 import { X, Wallet, Landmark, PiggyBank, Banknote, CreditCard, Utensils, ShoppingBag, Car, Home as HomeI, Receipt, Tv, Film, HeartPulse, GraduationCap, Plane, TrendingUp, Briefcase, Users, Megaphone, Server, Package, ArrowLeftRight, ShoppingCart, Coins, Target, CircleDollarSign, Check, ChevronDown } from 'lucide-react';
 import { inr } from '../engine/format';
@@ -294,7 +295,7 @@ export function MoneyInput({ value, onChange, autoFocus, id, invalid, onBlur, pl
     <div className={cn('group relative flex items-center rounded-xl border bg-surface shadow-card transition-[border,box-shadow] duration-150 focus-within:ring-4',
       invalid ? 'border-negative/50 focus-within:ring-negative/10' : 'border-border hover:border-border-strong focus-within:border-border-strong focus-within:ring-accent-soft',
       big ? 'h-16 px-4' : 'h-10 px-3')}>
-      <span className={cn('num select-none text-foreground-subtle', big ? 'mr-2 text-[28px] font-medium' : 'mr-1.5 text-body')}>₹</span>
+      <span className={cn('num select-none text-foreground-subtle', big ? 'mr-2 text-[28px] font-medium' : 'mr-1.5 text-body')}>{cur()}</span>
       <input id={id} type="number" inputMode="decimal" step="any" min="0" autoFocus={autoFocus} aria-invalid={invalid || undefined}
         className={cn('num w-full min-w-0 bg-transparent text-foreground outline-none placeholder:text-foreground-subtle/60', big ? 'font-display text-[32px] font-semibold tracking-[-0.03em]' : 'text-body')}
         placeholder={placeholder} value={value} onBlur={onBlur}

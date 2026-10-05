@@ -236,7 +236,7 @@ export function addTransaction(state: AppState, amount: number, category: string
   };
 }
 
-export function getFinancialContext(state: AppState): Omit<AIResult, 'id' | 'q' | 'at'> {
+export function getFinancialContext(state: AppState): any {
   const world = state.world;
   const avail = available(state, world);
   const fc = forecast(state, world, 6);
@@ -244,7 +244,20 @@ export function getFinancialContext(state: AppState): Omit<AIResult, 'id' | 'q' 
   
   return {
     kind: 'answer', title: 'Financial Context',
-    summary: `Currently available: ${inr(avail, { compact: true })}. This month: ${inr(cm.income, { compact: true })} in, ${inr(cm.expense, { compact: true })} out. Projected 6 month balance: ${inr(fc[5].balance, { compact: true })}.`,
+    summary: `Fetching detailed financial context...`,
+    analysisData: {
+      currentAvailable: avail,
+      thisMonth: {
+        income: cm.income,
+        expense: cm.expense,
+        net: cm.net,
+        byCategory: cm.byCategory,
+      },
+      upcomingRecurring: state.recurring.filter((r) => W(r) === world).map(r => ({ name: r.name, amount: r.amount, type: r.type, day: r.day })),
+      activeGoals: state.goals.filter((g) => W(g) === world).map(g => ({ name: g.name, target: g.target, current: g.current, monthly: g.monthly, targetDate: g.targetDate })),
+      upcomingTrips: state.trips.filter((t) => W(t) === world).map(t => ({ destination: t.destination, start: t.start, totalBudget: Object.values(t.budget).reduce((a, b) => a + b, 0) })),
+      forecast: fc.slice(0, 3).map(f => ({ month: f.label, income: f.income, expense: f.expense, balance: f.balance })),
+    },
     metrics: [{ label: 'Available', value: inr(avail, { compact: true }) }, { label: 'Monthly Surplus', value: inr(cm.net, { compact: true }) }],
     chart: chartOf(fc),
   };
@@ -264,6 +277,29 @@ export function whenCanIAfford(state: AppState, price: number, item: string): Om
     summary: `At your current surplus of ~${inr(surplus, { compact: true })}/month, you'd reach the price plus a one-month cushion in ${monthsNeeded} months.`,
     metrics: [{ label: 'Target', value: inr(price, { compact: true }) }, { label: 'Monthly surplus', value: inr(surplus, { compact: true }) }, { label: 'Months', value: String(monthsNeeded) }],
     actions: [{ label: 'Turn into a goal', ops: [add('goals', { name: cap(item), kind: 'custom', target: price, current: 0, monthly: Math.round(surplus / 500) * 500, targetDate: ymd(addMonths(now, monthsNeeded)) })] }],
+  };
+}
+
+export function searchTransactions(state: AppState, keyword?: string, category?: string, type?: 'income' | 'expense'): any {
+  const world = state.world;
+  let txs = state.transactions.filter(t => W(t) === world);
+  if (type) txs = txs.filter(t => t.type === type);
+  if (category) txs = txs.filter(t => (t.category || '').toLowerCase().includes(category.toLowerCase()));
+  if (keyword) {
+    const k = keyword.toLowerCase();
+    txs = txs.filter(t => (t.note || '').toLowerCase().includes(k) || (t.category || '').toLowerCase().includes(k));
+  }
+  
+  txs = txs.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 20); // Last 20 matching
+  const total = txs.reduce((s, t) => s + (t.amount || 0), 0);
+  
+  return {
+    kind: 'answer', title: 'Transaction Search',
+    summary: `Found ${txs.length} transactions matching your query.`,
+    analysisData: {
+      transactions: txs.map(t => ({ date: t.date, note: t.note, category: t.category, amount: t.amount, type: t.type })),
+      totalAmount: total,
+    }
   };
 }
 

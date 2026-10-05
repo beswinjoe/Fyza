@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { Input, cn } from './ui';
+import { CurrencyPicker } from './CurrencyPicker';
 import welcomeImg from '../assets/welcome.jpg';
 
 const PROFILES = [
@@ -15,7 +16,8 @@ const PROFILES = [
 const CAPTIONS = [
   { eyebrow: 'No. 01 — Clarity', line: 'Every rupee, accounted for. Every plan, within reach.' },
   { eyebrow: 'No. 02 — Shape', line: 'One workspace that bends to the way you actually live.' },
-  { eyebrow: 'No. 03 — Begin', line: 'The quiet confidence of knowing where you stand.' },
+  { eyebrow: 'No. 03 — Global', line: 'Speak your money’s language.' },
+  { eyebrow: 'No. 04 — Begin', line: 'The quiet confidence of knowing where you stand.' },
 ];
 
 function PrimaryCTA({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
@@ -37,12 +39,13 @@ export default function Onboarding() {
   const { dispatch } = useStore();
   const [name, setName] = useState('');
   const [sel, setSel] = useState(['personal']);
-  const [step, setStep] = useState(0); // 0 welcome · 1 profiles · 2 name
+  const [currency, setCurrency] = useState('INR');
+  const [step, setStep] = useState(0); // 0 welcome · 1 profiles · 2 currency · 3 name
 
   const toggle = (id: string) => setSel((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const complete = () => {
-    dispatch({ type: 'seed', opts: { name, profiles: sel.length ? sel : ['personal'] } });
+    dispatch({ type: 'seed', opts: { name, profiles: sel.length ? sel : ['personal'], currency } });
   };
 
   const cap = CAPTIONS[step];
@@ -75,8 +78,8 @@ export default function Onboarding() {
             <span className="font-display text-[18px] font-semibold tracking-[-0.03em]">Fyza</span>
           </div>
           {step > 0 && (
-            <div className="flex gap-1.5" aria-label={`Step ${step} of 2`}>
-              {[1, 2].map((i) => (
+            <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>
+              {[1, 2, 3].map((i) => (
                 <div key={i} className={cn('h-[3px] rounded-full transition-all duration-500', step >= i ? 'w-8 bg-foreground' : 'w-4 bg-border-strong')} />
               ))}
             </div>
@@ -141,6 +144,24 @@ export default function Onboarding() {
             <div className="stagger max-w-[520px]">
               <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Step two</div>
               <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em]">
+                What currency<br />do you use?
+              </h1>
+              <div className="mt-8">
+                <CurrencyPicker value={currency} onChange={setCurrency} className="w-full max-w-[400px]" maxHeight={260} />
+              </div>
+              <div className="mt-9 flex items-center gap-6">
+                <PrimaryCTA onClick={() => setStep(3)}>Continue</PrimaryCTA>
+                <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">
+                  <ArrowLeft className="size-3.5" /> Back
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="stagger max-w-[520px]">
+              <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Step three</div>
+              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em]">
                 What should we<br />call you?
               </h1>
               <p className="mt-5 max-w-[400px] text-[15px] leading-[1.55] text-foreground-subtle">
@@ -156,7 +177,7 @@ export default function Onboarding() {
               />
               <div className="mt-10 flex items-center gap-6">
                 <PrimaryCTA disabled={!name.trim()} onClick={complete}>Enter workspace</PrimaryCTA>
-                <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">
+                <button onClick={() => setStep(2)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">
                   <ArrowLeft className="size-3.5" /> Back
                 </button>
               </div>

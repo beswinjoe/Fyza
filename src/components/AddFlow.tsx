@@ -4,7 +4,9 @@ import { useStore } from '../engine/store';
 import { ymd, today, inr, addDays } from '../engine/format';
 import { emi, TRIP_PARTS, tripDays } from '../engine/finance';
 import { estimateTrip } from '../engine/ai';
-import { Modal, Icon, Button, Input, Select, Field, cn } from './ui';
+import { Modal, Icon, Button, Input, Select, Field, cn, Kbd, AIMark } from './ui';
+import { useAI, AICard } from './AI';
+import { AIResult } from '../types/ai';
 import { AppState } from '../types/app';
 
 export const TYPES = [
@@ -54,6 +56,10 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
   const { state, dispatch } = useStore();
   const [type, setType] = useState<string | null>(initial || null);
   const meta = TYPES.find((t) => t.k === type);
+  const ask = useAI();
+  const [nl, setNl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<AIResult | null>(null);
   
   const [v, setV] = useState<Record<string, any>>({ date: ymd(today()), start: ymd(addDays(today(), 30)), end: ymd(addDays(today(), 34)), targetDate: ymd(new Date(today().getFullYear() + 1, today().getMonth(), 1)) });
   const [showOptional, setShowOptional] = useState(false);
@@ -71,6 +77,17 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
     const days = tripDays({ start: v.start, end: v.end } as any);
     const est = estimateTrip(v.destination || '', days);
     setV((p) => ({ ...p, ...Object.fromEntries(TRIP_PARTS.map((x) => [`b_${x}`, est[x]])) }));
+  };
+
+  const runNl = async () => {
+    if (!nl.trim()) return;
+    setBusy(true); setRes(null);
+    try {
+      const r = await ask(nl);
+      setRes(r);
+    } finally {
+      setBusy(false); setNl('');
+    }
   };
 
   const valid = type && (n(v.amount) > 0 || n(v.principal) > 0 || n(v.target) > 0 || v.name || v.destination);
@@ -92,16 +109,55 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
   if (!type) {
     return (
       <Modal title="Add to your workspace" onClose={onClose} wide>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 stagger">
-          {TYPES.map((t) => (
-            <button key={t.k} className={cn("flex flex-col items-start gap-3 rounded-xl border border-border bg-surface p-4 text-left transition-colors", t.soon ? "opacity-50 cursor-not-allowed" : "hover:border-border-strong hover:bg-surface-muted")} disabled={t.soon} onClick={() => pick(t.k)}>
-              <Icon as={t.icon} size="sm" />
-              <div>
-                <b className="text-[14px] font-medium text-foreground block">{t.label}</b>
-                <span className="mt-1 text-[12px] text-foreground-subtle block">{t.d}</span>
-              </div>
-            </button>
-          ))}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col rounded-xl border border-border bg-surface shadow-card focus-within:border-border-strong focus-within:ring-4 focus-within:ring-accent-soft transition-all">
+            <div className="flex items-center gap-3 px-4 pt-4">
+              <AIMark className="shrink-0" />
+              <input
+                autoFocus
+                type="text"
+                value={nl}
+                onChange={(e) => setNl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') runNl();
+                }}
+                placeholder="I spent 850 on dinner..."
+                className="w-full bg-transparent text-[16px] text-foreground outline-none placeholder:text-foreground-subtle"
+              />
+              {busy ? (
+                <span className="flex gap-1 shrink-0">
+                  {[0, 1, 2].map((i) => <i key={i} className="size-1.5 rounded-full bg-accent" style={{ animation: `blink 1.2s ${i * 0.15}s infinite` }} />)}
+                </span>
+              ) : (
+                <Button variant="primary" size="sm" onClick={runNl} disabled={!nl.trim()} className="shrink-0">Enter <Kbd className="bg-transparent shadow-none border-transparent text-background/80">↵</Kbd></Button>
+              )}
+            </div>
+            <div className="p-4 pt-3">
+              {res ? (
+                <AICard r={res} />
+              ) : (
+                <p className="text-[13px] text-foreground-subtle">
+                  Fyza understands natural language. Type things like &ldquo;Got 50,000 salary&rdquo; or &ldquo;Create a 5,000/mo SIP&rdquo;.
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <div>
+            <div className="mb-3 flex items-center gap-2 text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">
+              <div className="h-px flex-1 bg-border" /> Or add manually <div className="h-px flex-1 bg-border" />
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 stagger">
+              {TYPES.map((t) => (
+                <button key={t.k} className={cn("flex flex-col items-start gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors", t.soon ? "opacity-50 cursor-not-allowed" : "hover:border-border-strong hover:bg-surface-muted")} disabled={t.soon} onClick={() => pick(t.k)}>
+                  <div className="flex items-center gap-2">
+                    <Icon as={t.icon} size="sm" />
+                    <b className="text-[13px] font-medium text-foreground block">{t.label}</b>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </Modal>
     );

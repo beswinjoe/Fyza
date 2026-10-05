@@ -1,3 +1,4 @@
+import { money } from '../engine/currency';
 import { useState, useEffect } from 'react';
 import { Plus, Plane, Sparkles, Trash2, AlertTriangle, Compass } from 'lucide-react';
 import { useStore } from '../engine/store';
@@ -55,8 +56,9 @@ function ForecastView({ state, world }: { state: AppState; world: any }) {
             ['Recurring bills', -r.recurring] as const,
             ['EMIs', -r.emis] as const,
             ['Everyday spending', -r.variable] as const,
-            ...(sel === 0 ? [['Already spent', -(r.expense - r.recurring - r.emis - r.variable - r.trips - r.oneTime)] as const] : []),
-            ...r.tripList.map((t) => [`✈ ${t.name}`, -t.amount, 'text-warning'] as const),
+            ...(sel === 0 ? [['Already spent', -(r.expense - r.recurring - r.emis - r.variable - r.trips - r.oneTime - r.goals)] as const] : []),
+            ...r.tripList.map((t: any) => [`✈ ${t.name}`, -t.amount, 'text-warning'] as const),
+            ...r.goalList.map((g: any) => [`🎯 ${g.name}`, -g.amount, 'text-accent'] as const),
           ].filter(([, v]) => Math.round(v) !== 0).map(([l, v, tone]) => (
             <div key={l} className="flex items-center justify-between text-[13.5px]"><span className="text-foreground-muted">{l}</span><span className={cn('num font-medium', tone)}>{inr(v, { sign: true })}</span></div>
           ))}
@@ -136,12 +138,13 @@ function TripsView({ state, openAdd, openItem }: { state: AppState; openAdd: (t:
   );
 }
 
-const PRESETS: Record<string, [string, Record<string, number>][]> = {
-  personal: [
-    ['Buy ₹1.5L laptop', { oneTime: 150000, oneTimeMonth: 1 }], ['Save ₹15k / month', { monthlySave: 15000 }], ['Salary → ₹1L', { incomeDelta: 25000 }],
-    ['Lose income 3 months', { incomeLoss: 3 }], ['Rent +₹5,000', { expenseDelta: 5000 }],
+// Labels are built at render time so they use the workspace currency.
+const PRESETS: Record<string, () => [string, Record<string, number>][]> = {
+  personal: () => [
+    [`Buy ${money(150000, { compact: true })} laptop`, { oneTime: 150000, oneTimeMonth: 1 }], [`Save ${money(15000, { compact: true })} / month`, { monthlySave: 15000 }], [`Salary +${money(25000, { compact: true })}`, { incomeDelta: 25000 }],
+    ['Lose income 3 months', { incomeLoss: 3 }], [`Rent +${money(5000)}`, { expenseDelta: 5000 }],
   ],
-  business: [['Revenue −20%', { revenuePct: -0.2 }], ['Hire at ₹40k/mo', { expenseDelta: 40000 }], ['New ₹2L campaign', { oneTime: 200000, oneTimeMonth: 1 }], ['Revenue +30%', { revenuePct: 0.3 }]],
+  business: () => [['Revenue −20%', { revenuePct: -0.2 }], [`Hire at ${money(40000, { compact: true })}/mo`, { expenseDelta: 40000 }], [`New ${money(200000, { compact: true })} campaign`, { oneTime: 200000, oneTimeMonth: 1 }], ['Revenue +30%', { revenuePct: 0.3 }]],
 };
 
 function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: Dispatch<Action>; world: any }) {
@@ -202,7 +205,7 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
         <Card className="p-4 sm:p-5">
           <div className="mb-3 text-[14px] font-semibold text-foreground">Quick scenarios</div>
           <div className="mb-5 flex flex-wrap gap-2">
-            {(PRESETS[world] || PRESETS.personal).map(([l, s]) => (
+            {(PRESETS[world] || PRESETS.personal)().map(([l, s]) => (
               <button key={l} className={cn("rounded-lg border px-2.5 py-1.5 text-[12.5px] font-medium transition-colors", JSON.stringify(sc) === JSON.stringify(s) ? "border-foreground bg-foreground text-inverse-foreground" : "border-border bg-surface text-foreground-subtle hover:border-foreground-muted hover:text-foreground")} onClick={() => setSc(s)}>{l}</button>
             ))}
           </div>

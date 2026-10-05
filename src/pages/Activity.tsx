@@ -158,17 +158,25 @@ export default function ActivityPage({ openAdd }: { openAdd: (t?: string) => voi
             )}
           </div>
 
-          <div className="px-5 pb-3 max-md:px-4">
+          <div className="relative px-5 pb-5 pt-2 max-md:px-4">
+            <div className="absolute bottom-0 left-[38px] top-6 w-px bg-border max-md:left-[34px]" />
             {groups.length === 0 && <EmptyState icon={Search} title="No matching activity" description="Try a different search or remove a filter." />}
             {groups.map(([d, items]) => {
               const net = items.reduce((s, t) => s + (t.type === 'income' ? t.amount : t.type === 'expense' ? -t.amount : 0), 0);
               return (
-                <section key={d} className="border-b border-border py-2 last:border-0">
-                  <div className="flex items-center justify-between pb-1 pt-3 text-meta">
-                    <span className="font-medium text-foreground-muted">{relDay(d) === fmtDate(d) ? fmtDate(d, true) : <>{relDay(d)} <span className="text-foreground-subtle">· {fmtDate(d)}</span></>}</span>
+                <section key={d} className="relative mt-6 first:mt-0">
+                  <div className="flex items-center justify-between pb-2 text-meta">
+                    <div className="flex items-center gap-4">
+                      <div className="relative z-10 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface shadow-[0_0_0_8px_var(--surface)]">
+                        <div className="size-2 rounded-full bg-border-strong" />
+                      </div>
+                      <span className="font-medium text-foreground">{relDay(d) === fmtDate(d) ? fmtDate(d, true) : <>{relDay(d)} <span className="text-foreground-subtle">· {fmtDate(d)}</span></>}</span>
+                    </div>
                     <span className={cn('num', net > 0 ? 'text-positive' : 'text-foreground-subtle')}>{inr(net, { sign: true })}</span>
                   </div>
-                  {items.map((t) => <TxRow key={t.id} t={t} onOpen={setOpen} />)}
+                  <div className="ml-[42px] mt-2 flex flex-col gap-1 max-md:ml-10">
+                    {items.map((t) => <TxRow key={t.id} t={t} onOpen={setOpen} />)}
+                  </div>
                 </section>
               );
             })}

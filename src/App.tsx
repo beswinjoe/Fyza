@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Home, LineChart, Compass, Building2, PanelLeftClose, PanelLeft, LogOut, Plus, Search, Plane, Landmark, CreditCard, HandCoins, Repeat } from 'lucide-react';
+import { Home, LineChart, Compass, Building2, PanelLeftClose, PanelLeft, Plus, Search, Plane, Landmark, CreditCard, HandCoins, Repeat } from 'lucide-react';
 import { useStore } from './engine/store';
 import Onboarding from './components/Onboarding';
 import HomePage from './pages/Home';
@@ -11,6 +11,7 @@ import { Palette } from './components/AI';
 import { AddFlow } from './components/AddFlow';
 import { ItemView } from './components/ItemView';
 import { Toast, Button, Kbd, AIMark, cn } from './components/ui';
+import Settings from './components/Settings';
 import { World } from './types/finance';
 
 export type Page = 'home' | 'activity' | 'plans' | 'trips' | 'accounts' | 'cards' | 'loans' | 'subscriptions' | 'business';
@@ -32,6 +33,7 @@ export default function App() {
   const [item, setItem] = useState<{ type: string; id: string } | null>(null);
   const [toast, setToast] = useState('');
   const [sb, setSb] = useState(true);
+  const [settings, setSettings] = useState(false);
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
@@ -99,7 +101,6 @@ export default function App() {
     ...(hasBiz ? [{ id: 'business' as Page, label: 'Business', icon: Building2 }] : []),
   ];
 
-  const signOut = () => { if (window.confirm('Sign out? This clears your local Fyza workspace on this device.')) dispatch({ type: 'reset' }); };
   const initials = state.user.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || 'F';
 
   return (
@@ -150,16 +151,14 @@ export default function App() {
 
           <div className="mt-auto flex flex-col pt-4">
             <div className="flex items-center justify-between border-t border-border pt-4">
-              <button className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1.5 transition-colors hover:bg-surface-muted text-left">
+              <button onClick={() => setSettings(true)} className="flex min-w-0 flex-1 items-center gap-2.5 rounded-md p-1.5 transition-colors hover:bg-surface-muted text-left">
                 <div className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-muted text-[11px] font-semibold text-foreground-muted ring-1 ring-border">{initials}</div>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13px] font-medium text-foreground">{state.user.name || 'You'}</div>
                   <div className="truncate text-[11px] capitalize text-foreground-subtle">{state.profiles.join(' · ') || 'personal'}</div>
                 </div>
               </button>
-              <div className="flex shrink-0 items-center gap-0.5 pr-1">
-                <Button variant="ghost" size="sm" icon aria-label="Sign out" title="Sign out" onClick={signOut} className="size-7 text-foreground-subtle hover:text-foreground"><LogOut size={15} /></Button>
-              </div>
+
             </div>
           </div>
         </aside>
@@ -184,7 +183,7 @@ export default function App() {
                 ))}
               </div>
             )}
-            <Button variant="ghost" size="sm" icon aria-label="Sign out" onClick={signOut} className="lg:hidden max-[400px]:hidden"><LogOut /></Button>
+            <Button variant="ghost" size="sm" icon aria-label="Settings" onClick={() => setSettings(true)} className="lg:hidden max-[400px]:hidden"><div className="grid size-6 place-items-center rounded-full bg-surface-muted text-[10px] font-bold text-foreground-muted ring-1 ring-border">{initials}</div></Button>
             <Button variant="primary" size="sm" onClick={() => openAdd()} className="max-lg:hidden"><Plus />Add</Button>
           </div>
         </header>
@@ -214,6 +213,7 @@ export default function App() {
       {cmd && <Palette onClose={() => setCmd(false)} onNavigate={(p) => { setPage(p as Page); setCmd(false); }} onAdd={(t) => { setCmd(false); openAdd(t); }} hasBiz={hasBiz} />}
       {add !== false && <AddFlow initial={typeof add === 'string' ? add : null} onClose={() => setAdd(false)} onDone={setToast} />}
       {item && <ItemView type={item.type} id={item.id} onClose={() => setItem(null)} />}
+      {settings && <Settings onClose={() => setSettings(false)} />}
       {toast && <Toast msg={toast} onDone={clearToast} />}
     </div>
   );
