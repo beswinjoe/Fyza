@@ -7,7 +7,7 @@
    runtime via [data-theme]. Tailwind tokens reference them inline.
 ------------------------------------------------------------------- */
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark (@media all);
 
 :root {
   --background: #f7f7f6;
@@ -36,31 +36,31 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
+@media all {
   :root {
-    --background: #0a0a0b;
-    --surface: #111113;
-    --surface-muted: #161618;
-    --surface-elevated: #18181b;
-    --foreground: #ececee;
-    --foreground-muted: #a0a0a8;
-    --foreground-subtle: #68686f;
-    --border: rgb(255 255 255 / 0.065);
-    --border-strong: rgb(255 255 255 / 0.12);
+    --background: #0b1020;
+    --surface: rgb(255 255 255 / 0.045);
+    --surface-muted: rgb(255 255 255 / 0.06);
+    --surface-elevated: rgb(20 28 50 / 0.72);
+    --foreground: #eef1f7;
+    --foreground-muted: #a9b1c4;
+    --foreground-subtle: #78819a;
+    --border: rgb(255 255 255 / 0.09);
+    --border-strong: rgb(255 255 255 / 0.16);
     --accent: #c6ec7c;
     --accent-soft: rgb(198 236 124 / 0.09);
     --accent-foreground: #11150a;
     --inverse: #f4f4f5;
-    --inverse-foreground: #0a0a0b;
+    --inverse-foreground: #0b1020;
     --positive: #5ad49b;
     --negative: #f07f7f;
     --warning: #e8bf72;
     --chart-1: #c6ec7c;
     --chart-2: #8f8f98;
     --chart-grid: rgb(255 255 255 / 0.05);
-    --overlay: rgb(0 0 0 / 0.56);
+    --overlay: rgb(5 8 18 / 0.45);
     --shadow-card-v: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 1px 2px rgb(0 0 0 / 0.3);
-    --shadow-pop-v: 0 0 0 1px rgb(255 255 255 / 0.07), 0 24px 64px -16px rgb(0 0 0 / 0.7);
+    --shadow-pop-v: inset 0 1px 0 rgb(255 255 255 / 0.10), 0 0 0 1px rgb(255 255 255 / 0.08), 0 30px 80px -20px rgb(0 0 0 / 0.7);
     color-scheme: dark;
   }
 }
@@ -160,7 +160,7 @@
   input[type='number']::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type='number'] { -moz-appearance: textfield; }
   input[type='date']::-webkit-calendar-picker-indicator { opacity: 0.5; cursor: pointer; }
-  @media (prefers-color-scheme: dark) {
+  @media all {
     input[type='date']::-webkit-calendar-picker-indicator { filter: invert(1); }
   }
   * { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
@@ -181,3 +181,115 @@
 @keyframes welcomeZoom { from { transform: scale(1.08); } to { transform: scale(1); } }
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { [class*="welcomeZoom"], [class*="fadeUp"] { animation: none !important; } }
+
+/* ---------- Atmosphere (single navy theme for everyone) ---------- */
+.onb-atmos {
+  --atm-base: #f6f4ef;
+  --atm-lift: rgba(214, 222, 234, 0.55);
+  --atm-low: rgba(196, 206, 222, 0.35);
+  --atm-vignette: rgba(120, 128, 145, 0.10);
+  position: relative;
+  isolation: isolate;
+  background-color: var(--atm-base);
+  background-image:
+    radial-gradient(120% 80% at 75% 0%, var(--atm-lift) 0%, transparent 60%),
+    radial-gradient(90% 70% at 70% 110%, var(--atm-low) 0%, transparent 65%),
+    linear-gradient(180deg, transparent 0%, var(--atm-low) 100%);
+}
+.onb-atmos::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(140% 110% at 65% 45%, transparent 55%, var(--atm-vignette) 100%);
+}
+.onb-atmos::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+@media all {
+  .onb-atmos {
+    --atm-base: #0b1020;
+    --atm-lift: rgba(58, 72, 108, 0.42);
+    --atm-low: rgba(42, 54, 88, 0.55);
+    --atm-vignette: rgba(3, 5, 12, 0.55);
+    color-scheme: dark;
+  }
+  .onb-atmos::after { opacity: 0.06; }
+}
+@media (max-width: 1023px) {
+  .onb-atmos {
+    background-image:
+      radial-gradient(140% 60% at 50% 100%, var(--atm-low) 0%, transparent 70%),
+      linear-gradient(180deg, transparent 30%, var(--atm-low) 100%);
+  }
+  .onb-atmos::before { background: radial-gradient(120% 90% at 50% 60%, transparent 60%, var(--atm-vignette) 100%); }
+}
+/* App-shell variant: atmosphere stays fixed to the viewport while content scrolls */
+.onb-atmos-app { background-attachment: fixed; }
+.onb-atmos-app::before, .onb-atmos-app::after { position: fixed; }
+
+/* ---------- Liquid glass surfaces (app shell only) ---------- */
+.onb-atmos-app {
+  --surface: rgb(255 255 255 / 0.55);
+  --surface-muted: rgb(255 255 255 / 0.42);
+  --border: rgb(30 40 70 / 0.08);
+  --border-strong: rgb(30 40 70 / 0.16);
+}
+@media all {
+  .onb-atmos-app {
+    --surface: rgb(255 255 255 / 0.045);
+    --surface-muted: rgb(255 255 255 / 0.06);
+    --border: rgb(255 255 255 / 0.09);
+    --border-strong: rgb(255 255 255 / 0.16);
+  }
+}
+.onb-atmos-app .liquid {
+  position: relative;
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.7),
+    inset 0 0 0 1px rgb(255 255 255 / 0.25),
+    0 1px 2px rgb(20 30 60 / 0.04),
+    0 12px 32px -12px rgb(20 30 60 / 0.12);
+}
+@media all {
+  .onb-atmos-app .liquid {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.10),
+      inset 0 0 0 1px rgb(255 255 255 / 0.02),
+      0 20px 40px -20px rgb(0 0 0 / 0.5);
+  }
+}
+/* soft specular sheen along the top edge */
+.onb-atmos-app .liquid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.10) 0%, transparent 40%);
+}
+@media all {
+  .onb-atmos-app .liquid::before { background: linear-gradient(180deg, rgb(255 255 255 / 0.05) 0%, transparent 35%); }
+}
+/* modals/menus keep a solid, readable elevated surface */
+.onb-atmos-app [role="dialog"], .onb-atmos-app [role="menu"] {
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+}
+
+/* Glass for every floating layer: dialogs, sheets, palette, toasts, tooltips */
+[role="dialog"], [role="status"], .bg-surface-elevated {
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  backdrop-filter: blur(32px) saturate(170%);
+}
+[role="dialog"].bg-surface { background-color: rgb(20 28 50 / 0.72); }
+html, body { background: var(--background); }

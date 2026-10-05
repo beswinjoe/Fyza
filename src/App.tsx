@@ -103,10 +103,10 @@ export default function App() {
   const initials = state.user.name.split(' ').map((s) => s[0]).join('').slice(0, 2).toUpperCase() || 'F';
 
   return (
-    <div className="flex min-h-full">
+    <div className="onb-atmos onb-atmos-app flex min-h-full">
       {/* ---------- Sidebar (desktop) ---------- */}
       {sb && (
-        <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-surface px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
+        <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-transparent px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
           <div className="flex h-8 items-center justify-between px-2 mb-4">
             <Brand />
             <Button variant="ghost" size="sm" icon aria-label="Collapse sidebar" onClick={() => setSb(false)} className="-mr-1 text-foreground-subtle"><PanelLeftClose /></Button>
@@ -167,7 +167,7 @@ export default function App() {
 
       {/* ---------- Main ---------- */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-background/80 px-6 backdrop-blur-xl max-md:px-4 lg:border-transparent lg:bg-background/70">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-border bg-transparent px-6 backdrop-blur-xl max-md:px-4 lg:border-transparent">
           {!sb && <Button variant="ghost" size="sm" icon aria-label="Expand sidebar" onClick={() => setSb(true)} className="max-lg:hidden"><PanelLeft /></Button>}
           <div className="lg:hidden"><Brand compact /></div>
           <button onClick={() => setCmd(true)} aria-label="Ask or tell Fyza anything (Command K)"

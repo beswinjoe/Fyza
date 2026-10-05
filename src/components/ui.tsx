@@ -75,7 +75,7 @@ export const LinkButton = ({ className, ...p }: ButtonHTMLAttributes<HTMLButtonE
 ================================================================ */
 /** primary = key sections; secondary = supporting info; plain = inline */
 export function Card({ children, className, tone = 'primary', as: As = 'section', ...p }: { children: ReactNode; className?: string; tone?: 'primary' | 'secondary' | 'plain'; as?: React.ElementType } & React.HTMLAttributes<HTMLElement>) {
-  const t = { primary: 'rounded-xl border border-border bg-surface shadow-card', secondary: 'rounded-xl border border-border bg-surface-muted/50', plain: '' }[tone];
+  const t = { primary: 'liquid rounded-2xl border border-border bg-surface shadow-card', secondary: 'rounded-xl border border-border bg-surface-muted/50', plain: '' }[tone];
   return <As className={cn(t, className)} {...p}>{children}</As>;
 }
 

@@ -48,7 +48,7 @@ export default function Onboarding() {
   const cap = CAPTIONS[step];
 
   return (
-    <main className="flex min-h-dvh flex-col bg-background p-3 lg:grid lg:h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:p-4">
+    <main className="onb-atmos flex min-h-dvh flex-col p-3 lg:grid lg:h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:p-4">
       {/* Visual */}
       <section aria-hidden className="relative h-[38vh] min-h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] lg:h-full">
         <img
