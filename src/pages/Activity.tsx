@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Search, ArrowLeftRight, Trash2, Plus, ReceiptText, SlidersHorizontal, X } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { inr, fmtDate, relDay, today, mkey, addMonths, monthLabel } from '../engine/format';
+import { money, fmtDate, relDay, today, mkey, addMonths, monthLabel } from '../engine/format';
 import { Icon, catIcon, Seg, Card, PageHeader, EmptyState, Button, Drawer, Badge, Eyebrow, Select, Divider, cn } from '../components/ui';
 import { Transaction } from '../types/finance';
 
@@ -29,7 +29,7 @@ export function TxRow({ t, compact, onOpen }: { t: Transaction; compact?: boolea
         <div className="mt-0.5 truncate text-meta text-foreground-subtle">{sub}</div>
       </div>
       <div className={cn('num shrink-0 text-right text-body font-medium', sign === '+' ? 'text-positive' : isT && !cross ? 'text-foreground-subtle' : 'text-foreground')}>
-        {sign}{inr(t.amount).replace('−', '')}
+        {sign}{money(t.amount).replace('−', '')}
       </div>
     </>
   );
@@ -56,7 +56,7 @@ function TxDetail({ t, onClose }: { t: Transaction; onClose: () => void }) {
       foot={<Button variant="danger" size="sm" onClick={() => { dispatch({ type: 'remove', col: 'transactions', id: t.id }); onClose(); }}><Trash2 />Delete</Button>}>
       <div className="flex flex-col items-center pb-6 pt-4 text-center">
         <Icon as={isT ? ArrowLeftRight : catIcon(t.category || '')} size="lg" tone={t.type === 'income' ? 'pos' : undefined} />
-        <div className={cn('num mt-4 font-display text-[40px] font-semibold leading-none tracking-[-0.035em]', sign === '+' && 'text-positive')}>{sign}{inr(t.amount).replace('−', '')}</div>
+        <div className={cn('num mt-4 font-display text-[40px] font-semibold leading-none tracking-[-0.035em]', sign === '+' && 'text-positive')}>{sign}{money(t.amount).replace('−', '')}</div>
         <div className="mt-2 text-body text-foreground-muted">{t.note || t.category}</div>
       </div>
       <Divider />
@@ -117,9 +117,9 @@ export default function ActivityPage({ openAdd }: { openAdd: (t?: string) => voi
       <PageHeader eyebrow="Past" title="Activity" action={
         empty ? <Button variant="primary" size="sm" onClick={() => openAdd('expense')}><Plus />Add transaction</Button> : (
           <div className="flex items-center gap-6">
-            <div className="text-right"><Eyebrow>Money in</Eyebrow><div className="num mt-0.5 text-[17px] font-semibold text-positive">{inr(totIn, { compact: true })}</div></div>
+            <div className="text-right"><Eyebrow>Money in</Eyebrow><div className="num mt-0.5 text-[17px] font-semibold text-positive">{money(totIn, { compact: true })}</div></div>
             <div className="h-8 w-px bg-border" />
-            <div className="text-right"><Eyebrow>Money out</Eyebrow><div className="num mt-0.5 text-[17px] font-semibold">{inr(totOut, { compact: true })}</div></div>
+            <div className="text-right"><Eyebrow>Money out</Eyebrow><div className="num mt-0.5 text-[17px] font-semibold">{money(totOut, { compact: true })}</div></div>
           </div>
         )} />
 
@@ -172,7 +172,7 @@ export default function ActivityPage({ openAdd }: { openAdd: (t?: string) => voi
                       </div>
                       <span className="font-medium text-foreground">{relDay(d) === fmtDate(d) ? fmtDate(d, true) : <>{relDay(d)} <span className="text-foreground-subtle">· {fmtDate(d)}</span></>}</span>
                     </div>
-                    <span className={cn('num', net > 0 ? 'text-positive' : 'text-foreground-subtle')}>{inr(net, { sign: true })}</span>
+                    <span className={cn('num', net > 0 ? 'text-positive' : 'text-foreground-subtle')}>{money(net, { sign: true })}</span>
                   </div>
                   <div className="ml-[42px] mt-2 flex flex-col gap-1 max-md:ml-10">
                     {items.map((t) => <TxRow key={t.id} t={t} onOpen={setOpen} />)}

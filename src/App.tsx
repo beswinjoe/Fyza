@@ -16,11 +16,13 @@ import { World } from './types/finance';
 
 export type Page = 'home' | 'activity' | 'plans' | 'trips' | 'accounts' | 'cards' | 'loans' | 'subscriptions' | 'business';
 
+import { Logo } from './components/Logo';
+
 function Brand({ compact }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
-      <div className="grid size-7 place-items-center rounded-lg bg-inverse font-display text-[14px] font-bold text-inverse-foreground shadow-card">F</div>
-      {!compact && <span className="font-display text-[16px] font-semibold tracking-[-0.02em]">Fyza</span>}
+    <div className="flex items-center gap-3">
+      <Logo className="size-9" />
+      {!compact && <span className="font-display text-[17px] font-semibold tracking-[-0.02em]">Fyza</span>}
     </div>
   );
 }

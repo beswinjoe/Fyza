@@ -33,7 +33,7 @@ export const relDay = (s: string | Date) => {
   return fmtDate(s);
 };
 
-// Money formatting lives in ./currency (workspace base currency). `inr` kept as alias for existing call sites.
-export { money as inr, money, cur } from './currency';
+// Money formatting lives in ./currency (workspace base currency).
+export { money, cur } from './currency';
 export const pct = (n: number, digits = 0) => `${(n * 100).toFixed(digits)}%`;
 export const uid = () => Math.random().toString(36).slice(2, 10);

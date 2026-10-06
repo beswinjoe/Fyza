@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { cur } from '../engine/currency';
 import { Landmark, CreditCard, HandCoins, ArrowDownLeft, ArrowUpRight, Repeat, Target, Plane, ArrowLeftRight, TrendingUp, Building2, Home, Car, Shapes, ChevronLeft, Sparkles } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { ymd, today, inr, addDays } from '../engine/format';
+import { Action } from '../types/store';
+import { ymd, today, money, addDays, parseDate } from '../engine/format';
 import { emi, TRIP_PARTS, tripDays } from '../engine/finance';
 import { estimateTrip } from '../engine/ai';
-import { Modal, Icon, Button, Input, Select, Field, cn, Kbd, AIMark } from './ui';
+import { Modal, Icon, Button, Input, Select, Field, cn, Kbd, AIMark, useNumericInput } from './ui';
 import { useAI, AICard } from './AI';
 import { AIResult } from '../types/ai';
 import { AppState } from '../types/app';
@@ -27,7 +28,7 @@ export const TYPES = [
   { k: 'custom', label: 'Custom', icon: Shapes, d: 'Coming soon', soon: true },
 ];
 
-const n = (x: any) => {
+const n = (x: string | number) => {
   if (typeof x === 'string') return +x.replace(/[^0-9.-]+/g, '') || 0;
   return +x || 0;
 };
@@ -44,7 +45,7 @@ function toOps(type: string, v: Record<string, any>, state: AppState) {
     case 'card': return [{ col: 'cards', item: { name: v.name || 'Card', kind: v.kind, last4: v.last4, limit: n(v.limit), statementDay: n(v.statementDay), dueDay: n(v.dueDay), accountId: v.accountId || undefined } }];
     case 'loan': return [{ col: 'loans', item: { name: v.name || 'Loan', type: v.type, lender: v.lender, principal: n(v.principal), rate: n(v.rate), tenureMonths: n(v.tenureMonths), startDate: v.startDate, world } }];
     case 'goal': {
-      const months = Math.max(1, Math.round((new Date(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
+      const months = Math.max(1, Math.round((parseDate(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
       return [{ col: 'goals', item: { name: v.name || 'Goal', kind: v.kind, target: n(v.target), current: n(v.current), targetDate: v.targetDate, monthly: n(v.monthly) || Math.ceil((n(v.target) - n(v.current)) / months / 100) * 100, world } }];
     }
     case 'trip': return [{ col: 'trips', item: { destination: v.destination || 'Trip', start: v.start, end: v.end, budget: Object.fromEntries(TRIP_PARTS.map((p) => [p, n(v[`b_${p}`])])), world } }];
@@ -63,9 +64,10 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
   const [res, setRes] = useState<AIResult | null>(null);
   
   const [v, setV] = useState<Record<string, any>>({ date: ymd(today()), start: ymd(addDays(today(), 30)), end: ymd(addDays(today(), 34)), targetDate: ymd(new Date(today().getFullYear() + 1, today().getMonth(), 1)) });
+  const numAmount = useNumericInput({ isNumeric: true, onChange: (e: any) => set("amount", e.target.value) });
   const [showOptional, setShowOptional] = useState(false);
   
-  const set = (k: string, x: any) => setV((p) => ({ ...p, [k]: x }));
+  const set = (k: string, x: unknown) => setV((p) => ({ ...p, [k]: x }));
   
   const accs = [{ value: '', label: 'None' }, ...state.accounts.map((a) => ({ value: a.id, label: `${a.name}${a.world === 'business' ? ' · Business' : ''}` }))];
   const cards = [{ value: '', label: 'None' }, ...state.cards.map((c) => ({ value: c.id, label: c.name }))];
@@ -75,7 +77,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
   const pick = (k: string) => { setType(k); setV({ date: ymd(today()), start: ymd(addDays(today(), 30)), end: ymd(addDays(today(), 34)), targetDate: ymd(new Date(today().getFullYear() + 1, today().getMonth(), 1)) }); setShowOptional(false); };
   
   const autoTrip = () => {
-    const days = tripDays({ start: v.start, end: v.end } as any);
+    const days = tripDays({ start: v.start, end: v.end } as unknown as import('../types/finance').Trip);
     const est = estimateTrip(v.destination || '', days);
     setV((p) => ({ ...p, ...Object.fromEntries(TRIP_PARTS.map((x) => [`b_${x}`, est[x]])), isEstimated: true }));
   };
@@ -102,7 +104,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
     if (type === 'income' && !payload.category) payload.category = 'Salary';
 
     const ops = toOps(type!, payload, state);
-    dispatch({ type: 'batch', ops: ops.map((o) => ({ type: 'add', ...(o as any) })) });
+    dispatch({ type: 'batch', ops: ops.map((o) => ({ type: 'add', ...o } as unknown as Action)) });
     onDone?.(`${meta?.label} added`);
     onClose();
   };
@@ -171,7 +173,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
           <div className="flex flex-col gap-6">
             <div className="text-center space-y-3 pt-4 pb-2">
               <div className="text-[15px] font-medium text-foreground-muted">I pay</div>
-              <input autoFocus type="text" inputMode="decimal" className="w-full bg-transparent text-center font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong" placeholder="0" value={v.amount || ''} onChange={(e) => set('amount', e.target.value)} />
+              <input autoFocus className={`w-full bg-transparent text-center font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong ${numAmount.error ? "text-negative" : ""}`} placeholder="0" value={v.amount || ''} {...numAmount.props} />
               <div className="text-[15px] font-medium text-foreground-muted">every month for</div>
               <input type="text" className="w-full bg-transparent text-center text-[24px] font-medium text-foreground outline-none placeholder:text-border-strong" placeholder="Rent, Netflix, Gym" value={v.name || ''} onChange={(e) => set('name', e.target.value)} />
             </div>
@@ -208,7 +210,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
       case 'expense':
         return (
           <div className="flex flex-col gap-5">
-            <input autoFocus type="text" inputMode="decimal" className="w-full bg-transparent font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong mb-2" placeholder="0" value={v.amount || ''} onChange={(e) => set('amount', e.target.value)} />
+            <input autoFocus className={`w-full bg-transparent font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong mb-2 ${numAmount.error ? "text-negative" : ""}`} placeholder="0" value={v.amount || ''} {...numAmount.props} />
             <Field label="What was it for?">
               <Input placeholder="Dinner, cab, groceries..." value={v.note || ''} onChange={(e) => set('note', e.target.value)} />
             </Field>
@@ -250,7 +252,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
       case 'income':
         return (
           <div className="flex flex-col gap-5">
-            <input autoFocus type="text" inputMode="decimal" className="w-full bg-transparent font-display text-[48px] font-semibold text-positive outline-none placeholder:text-border-strong mb-2" placeholder="0" value={v.amount || ''} onChange={(e) => set('amount', e.target.value)} />
+            <input autoFocus className={`w-full bg-transparent font-display text-[48px] font-semibold text-positive outline-none placeholder:text-border-strong mb-2 ${numAmount.error ? "text-negative" : ""}`} placeholder="0" value={v.amount || ''} {...numAmount.props} />
             <Field label="Source">
               <Input placeholder="Salary, freelance project, bonus..." value={v.note || ''} onChange={(e) => set('note', e.target.value)} />
             </Field>
@@ -278,7 +280,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
         );
 
       case 'goal': {
-        const months = Math.max(1, Math.round((new Date(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
+        const months = Math.max(1, Math.round((parseDate(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
         const need = Math.max(0, (v.target || 0) - (v.current || 0));
         return (
           <div className="flex flex-col gap-5">
@@ -305,9 +307,9 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
             </div>
             
             <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-surface-muted border border-border">
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Remaining</div><div className="font-semibold">{inr(need, { compact: true })}</div></div>
+              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Remaining</div><div className="font-semibold">{money(need, { compact: true })}</div></div>
               <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Months</div><div className="font-semibold">{months}</div></div>
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Needed / mo</div><div className="font-semibold">{inr(need / months)}</div></div>
+              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Needed / mo</div><div className="font-semibold">{money(need / months)}</div></div>
             </div>
           </div>
         );
@@ -315,7 +317,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
       
       case 'trip': {
         const total = TRIP_PARTS.reduce((s, p) => s + (+v[`b_${p}`] || 0), 0);
-        const days = tripDays({ start: v.start, end: v.end } as any);
+        const days = tripDays({ start: v.start, end: v.end } as unknown as import('../types/finance').Trip);
         
         return (
           <div className="flex flex-col gap-6">
@@ -344,7 +346,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Trip Budget</div>
-                  <div className="text-[28px] font-semibold text-foreground mt-0.5">{inr(total)}</div>
+                  <div className="text-[28px] font-semibold text-foreground mt-0.5">{money(total)}</div>
                 </div>
                 <Button size="sm" onClick={() => {
                   if (v.isEstimated && total > 0 && !window.confirm("This will replace your current edits with a new estimate. Continue?")) return;
@@ -364,7 +366,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
                     <label htmlFor={`trip_b_${p}`} className="text-[14px] font-medium text-foreground capitalize cursor-pointer flex-1">{p}</label>
                     <div className="relative flex items-center">
                       <span className="absolute left-3 text-[14px] text-foreground-subtle font-medium">{cur()}</span>
-                      <input id={`trip_b_${p}`} type="number" placeholder="0" className="w-[120px] bg-transparent text-right text-[15px] font-medium text-foreground outline-none pl-6 pr-3 py-1.5 rounded-md hover:bg-surface-muted focus:bg-surface-muted focus:ring-2 focus:ring-accent-soft transition-all" value={v[`b_${p}`] || ''} onChange={(e) => {
+                      <Input id={`trip_b_${p}`} type="number" placeholder="0" className="w-[120px] bg-transparent text-right text-[15px] font-medium text-foreground outline-none pl-6 pr-3 py-1.5 border-none shadow-none focus:ring-0 group-hover:bg-surface-muted/0 hover:bg-surface-muted/0" value={v[`b_${p}`] || ''} onChange={(e) => {
                         set(`b_${p}`, e.target.value);
                       }} />
                     </div>
@@ -401,9 +403,9 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
             </div>
             
             <div className="grid grid-cols-3 gap-3 p-4 rounded-xl bg-surface-muted border border-border">
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">EMI</div><div className="font-semibold">{inr(e)}</div></div>
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Interest</div><div className="font-semibold text-negative">{inr(e * v.tenureMonths - v.principal, { compact: true })}</div></div>
-              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Total</div><div className="font-semibold">{inr(e * v.tenureMonths, { compact: true })}</div></div>
+              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">EMI</div><div className="font-semibold">{money(e)}</div></div>
+              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Interest</div><div className="font-semibold text-negative">{money(e * v.tenureMonths - v.principal, { compact: true })}</div></div>
+              <div><div className="text-[12px] text-foreground-subtle uppercase font-medium tracking-wider mb-1">Total</div><div className="font-semibold">{money(e * v.tenureMonths, { compact: true })}</div></div>
             </div>
           </div>
         );
@@ -471,7 +473,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
       case 'transfer':
         return (
           <div className="flex flex-col gap-5">
-            <input autoFocus type="text" inputMode="decimal" className="w-full bg-transparent font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong mb-2" placeholder="0" value={v.amount || ''} onChange={(e) => set('amount', e.target.value)} />
+            <input autoFocus className={`w-full bg-transparent font-display text-[48px] font-semibold text-foreground outline-none placeholder:text-border-strong mb-2 ${numAmount.error ? "text-negative" : ""}`} placeholder="0" value={v.amount || ''} {...numAmount.props} />
             <Field label="Note (Optional)">
               <Input placeholder="Owner draw, savings..." value={v.note || ''} onChange={(e) => set('note', e.target.value)} />
             </Field>

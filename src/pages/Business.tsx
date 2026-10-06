@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Building2, Plus, ReceiptText, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { businessMetrics, inWorld } from '../engine/finance';
-import { inr, monthLabel, fmtDate } from '../engine/format';
+import { money, monthLabel, fmtDate } from '../engine/format';
 import { Bar, AreaChart, Seg, Card, PageHeader, SectionHeader, EmptyState, Badge, Stat, HeroAmount, Eyebrow, Legend, Row, RowMeta, Icon, cn } from '../components/ui';
 import { AppState } from '../types/app';
 
@@ -19,13 +19,13 @@ export function BusinessHero({ state }: { state: AppState }) {
         <HeroAmount v={m.profit} className="mt-4" />
         <p className="mt-3 max-w-[56ch] text-[14px] leading-6 text-foreground-muted">
           {m.revenue + m.expenses > 0
-            ? <>Revenue of <b className="num font-semibold text-foreground">{inr(m.revenue)}</b> against <b className="num font-semibold text-foreground">{inr(m.expenses)}</b> in expenses last month.</>
+            ? <>Revenue of <b className="num font-semibold text-foreground">{money(m.revenue)}</b> against <b className="num font-semibold text-foreground">{money(m.expenses)}</b> in expenses last month.</>
             : 'No business revenue or expenses were recorded last month.'}
         </p>
         <div className="mt-7 grid grid-cols-4 gap-x-6 gap-y-5 border-t border-border pt-5 max-md:grid-cols-2">
-          <Stat label="Revenue" value={inr(m.revenue)} />
-          <Stat label="Expenses" value={inr(m.expenses)} />
-          <Stat label="Cash" value={inr(m.cash, { compact: true })} />
+          <Stat label="Revenue" value={money(m.revenue)} />
+          <Stat label="Expenses" value={money(m.expenses)} />
+          <Stat label="Cash" value={money(m.cash, { compact: true })} />
           <Stat label="Runway" value={Number.isFinite(m.runway) && m.runway <= 99 ? `${m.runway.toFixed(1)} mo` : '—'} tone={m.runway < 3 ? 'warning' : undefined} />
         </div>
       </div>
@@ -74,14 +74,14 @@ export default function BusinessPage({ openAdd }: { openAdd: (t?: string) => voi
             <Card className="p-5">
               <SectionHeader title="Runway & burn" sub="Average over the last 3 months" />
               <div className="grid grid-cols-3 gap-6 max-sm:grid-cols-1 max-sm:gap-4">
-                <Stat size="lg" label="Avg revenue" value={inr(m.avgRev)} />
-                <Stat size="lg" label="Avg burn" value={inr(m.avgExp)} />
-                <Stat size="lg" label="Net burn" value={inr(m.netBurn, { sign: true })} tone={m.netBurn > 0 ? 'negative' : 'positive'} />
+                <Stat size="lg" label="Avg revenue" value={money(m.avgRev)} />
+                <Stat size="lg" label="Avg burn" value={money(m.avgExp)} />
+                <Stat size="lg" label="Net burn" value={money(m.netBurn, { sign: true })} tone={m.netBurn > 0 ? 'negative' : 'positive'} />
               </div>
               <div className="mt-6">
                 <div className="mb-2 flex justify-between text-meta text-foreground-subtle">
                   <span>Runway {Number.isFinite(m.runway) && m.runway <= 99 ? `· ${m.runway.toFixed(1)} months` : '· no burn yet'}</span>
-                  <span className="num">{inr(m.cash, { compact: true })} cash</span>
+                  <span className="num">{money(m.cash, { compact: true })} cash</span>
                 </div>
                 <Bar value={Number.isFinite(m.runway) ? Math.min(1, m.runway / 12) : 1} tone={m.runway < 3 ? 'warning' : 'positive'} />
               </div>
@@ -90,8 +90,8 @@ export default function BusinessPage({ openAdd }: { openAdd: (t?: string) => voi
           <Card className="p-5">
             <SectionHeader icon={ReceiptText} title="Invoices" />
             <div className="grid grid-cols-2 gap-4 border-b border-border pb-4">
-              <Stat label="Receivable" value={inr(m.receivable)} tone={m.receivable ? 'positive' : undefined} />
-              <Stat label="Payable" value={inr(m.payable)} tone={m.payable ? 'negative' : undefined} />
+              <Stat label="Receivable" value={money(m.receivable)} tone={m.receivable ? 'positive' : undefined} />
+              <Stat label="Payable" value={money(m.payable)} tone={m.payable ? 'negative' : undefined} />
             </div>
             {invoices.length === 0 ? (
               <p className="pt-4 text-[13px] leading-5 text-foreground-subtle">No invoices yet. Invoices you create will show what you're owed and what's due.</p>
@@ -101,7 +101,7 @@ export default function BusinessPage({ openAdd }: { openAdd: (t?: string) => voi
                   <Row key={i.id}>
                     <Icon as={i.kind === 'payable' ? ArrowUpRight : ArrowDownLeft} size="sm" tone={i.kind === 'payable' ? undefined : 'pos'} />
                     <RowMeta title={i.client || 'Invoice'} sub={[i.status, i.due && `due ${fmtDate(i.due)}`].filter(Boolean).join(' · ')} />
-                    <span className={cn('num text-body font-medium', i.status === 'paid' && 'text-foreground-subtle line-through')}>{inr(i.amount)}</span>
+                    <span className={cn('num text-body font-medium', i.status === 'paid' && 'text-foreground-subtle line-through')}>{money(i.amount)}</span>
                   </Row>
                 ))}
               </div>

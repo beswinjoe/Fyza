@@ -1,6 +1,6 @@
 import { cur, activeCurrency } from './currency';
 // AI layer — local natural-language understanding over the financial engine.
-import { today, ymd, mkey, addMonths, monthLabel, MONTHS_LONG, inr, uid, daysInMonth, addDays } from './format';
+import { today, ymd, mkey, addMonths, monthLabel, MONTHS_LONG, money, uid, daysInMonth, addDays, parseDate } from './format';
 import { emi, forecast, available, monthSummary, studentCycle, baselineVariable, businessMetrics, W } from './finance';
 import { AppState } from '../types/app';
 import { AIResult } from '../types/ai';
@@ -11,7 +11,7 @@ import * as tools from './aiTools';
 
 const UNITS: Record<string, number> = { k: 1e3, thousand: 1e3, l: 1e5, lakh: 1e5, lakhs: 1e5, lac: 1e5, lacs: 1e5, cr: 1e7, crore: 1e7, crores: 1e7 };
 export function amounts(text: string): number[] {
-  const re = /([₹$€£¥]|rs\.?|inr|usd|eur|gbp|aed|cad|aud|sgd)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|thousand|cr|k|l)?\b(\s*(%|percent|days?|years?|yrs?|months?|st|nd|rd|th|am|pm))?/gi;
+  const re = /([₹$€£¥]|rs\.?|money|usd|eur|gbp|aed|cad|aud|sgd)?\s*(\d[\d,]*(?:\.\d+)?)\s*(lakhs?|lacs?|crores?|thousand|cr|k|l)?\b(\s*(%|percent|days?|years?|yrs?|months?|st|nd|rd|th|am|pm))?/gi;
   const out = [];
   let m;
   while ((m = re.exec(text))) {
@@ -76,22 +76,22 @@ export function localInterpret(text: string, state: AppState): AIResult {
   const resp = (o: Omit<AIResult, 'id' | 'q' | 'at'>): AIResult => ({ id: uid(), q: text, at: Date.now(), ...o });
   const monthlyIncome = state.recurring.filter((r) => W(r) === world && r.type === 'income').reduce((s, r) => s + r.amount, 0);
   const monthlyExp = fc[1]?.expense || 0;
-  const chartOf = (rows: any[], alt?: any[]) => ({ labels: rows.map((r) => r.label), base: rows.map((r) => r.balance), alt: alt?.map((r) => r.balance) });
+  const chartOf = (rows: { label: string, balance: number }[], alt?: { balance: number }[]) => ({ labels: rows.map((r) => r.label), base: rows.map((r) => r.balance), alt: alt?.map((r) => r.balance) });
 
   /* ---------- What-if ---------- */
   if (/^(what if|what happens if|if )/.test(t)) {
     const sc: Record<string, number> = {}; const desc: string[] = [];
     const to = t.match(/(salary|income|revenue)\s+(?:increases?|goes up|becomes|rises?|is)\s+(?:to\s+)?/);
-    if (to && amt && /to|becomes|is/.test(t)) { sc.incomeDelta = amt - monthlyIncome; desc.push(`Income becomes ${inr(amt)}/mo`); }
-    else if (/(salary|income).*(increase|rise|hike).*by/.test(t) && amt) { sc.incomeDelta = amt; desc.push(`Income +${inr(amt)}/mo`); }
+    if (to && amt && /to|becomes|is/.test(t)) { sc.incomeDelta = amt - monthlyIncome; desc.push(`Income becomes ${money(amt)}/mo`); }
+    else if (/(salary|income).*(increase|rise|hike).*by/.test(t) && amt) { sc.incomeDelta = amt; desc.push(`Income +${money(amt)}/mo`); }
     const fall = t.match(/(revenue|income|sales).*(falls?|drops?|decreases?)\s+(?:by\s+)?(\d+)\s*%/);
     if (fall) { sc.revenuePct = -Number(fall[3]) / 100; desc.push(`${cap(fall[1])} −${fall[3]}%`); }
     const lose = t.match(/lose (?:my )?(?:income|job|salary).*?(\d+|one|two|three|four|five|six)\s*months?/);
     if (lose) { sc.incomeLoss = +lose[1] || WORDNUM[lose[1]]; desc.push(`No income for ${sc.incomeLoss} months`); }
-    if (/(rent|expenses?|cost).*(increase|rise|goes up).*by/.test(t) && amt) { sc.expenseDelta = amt; desc.push(`Expenses +${inr(amt)}/mo`); }
-    if (/hire|employee|salary of/.test(t) && amt && !to) { sc.expenseDelta = amt; desc.push(`New hire at ${inr(amt)}/mo`); }
-    if (/buy|purchase|spend/.test(t) && amt) { sc.oneTime = amt; desc.push(`One-time purchase ${inr(amt)}`); }
-    if (/save.*(every|per|a) month/.test(t) && amt) { sc.monthlySave = amt; sc.expenseDelta = (sc.expenseDelta || 0) + amt; desc.push(`Set aside ${inr(amt)}/mo`); }
+    if (/(rent|expenses?|cost).*(increase|rise|goes up).*by/.test(t) && amt) { sc.expenseDelta = amt; desc.push(`Expenses +${money(amt)}/mo`); }
+    if (/hire|employee|salary of/.test(t) && amt && !to) { sc.expenseDelta = amt; desc.push(`New hire at ${money(amt)}/mo`); }
+    if (/buy|purchase|spend/.test(t) && amt) { sc.oneTime = amt; desc.push(`One-time purchase ${money(amt)}`); }
+    if (/save.*(every|per|a) month/.test(t) && amt) { sc.monthlySave = amt; sc.expenseDelta = (sc.expenseDelta || 0) + amt; desc.push(`Set aside ${money(amt)}/mo`); }
     if (!desc.length) return resp({ kind: 'answer', title: 'Try a more specific scenario', summary: `For example: “What if my salary becomes ${cur()}100,000?” or “What if my rent increases by ${cur()}5,000?”` });
     const base = forecast(state, world, 6), alt = forecast(state, world, 6, sc);
     const d = alt[5].balance - base[5].balance;
@@ -99,12 +99,12 @@ export function localInterpret(text: string, state: AppState): AIResult {
     return resp({
       kind: 'scenario', title: desc.join(' · '),
       summary: sc.monthlySave
-        ? `You'd have ${inr(sc.monthlySave * 5)} set aside by ${alt[5].label}, while your spending balance ends at ${inr(alt[5].balance, { compact: true })}.`
-        : `In 6 months you'd have ${inr(alt[5].balance, { compact: true })} instead of ${inr(base[5].balance, { compact: true })} — ${d >= 0 ? 'up' : 'down'} ${inr(Math.abs(d), { compact: true })}.${minAlt < 0 ? ' Your balance would dip below zero at some point.' : ''}`,
+        ? `You'd have ${money(sc.monthlySave * 5)} set aside by ${alt[5].label}, while your spending balance ends at ${money(alt[5].balance, { compact: true })}.`
+        : `In 6 months you'd have ${money(alt[5].balance, { compact: true })} instead of ${money(base[5].balance, { compact: true })} — ${d >= 0 ? 'up' : 'down'} ${money(Math.abs(d), { compact: true })}.${minAlt < 0 ? ' Your balance would dip below zero at some point.' : ''}`,
       metrics: [
-        { label: 'Today’s plan', value: inr(base[5].balance, { compact: true }) },
-        { label: 'Scenario', value: inr(alt[5].balance, { compact: true }), tone: d >= 0 ? 'pos' : 'neg' },
-        { label: 'Lowest point', value: inr(minAlt, { compact: true }), tone: minAlt < 0 ? 'neg' : undefined },
+        { label: 'Today’s plan', value: money(base[5].balance, { compact: true }) },
+        { label: 'Scenario', value: money(alt[5].balance, { compact: true }), tone: d >= 0 ? 'pos' : 'neg' },
+        { label: 'Lowest point', value: money(minAlt, { compact: true }), tone: minAlt < 0 ? 'neg' : undefined },
       ],
       chart: chartOf(base, alt), scenario: { name: desc.join(' · '), sc },
       actions: [{ label: 'Save scenario', ops: [add('scenarios', { name: desc.join(' · '), sc, world, created: ymd(now) })] }],
@@ -119,9 +119,9 @@ export function localInterpret(text: string, state: AppState): AIResult {
       const runway = world === 'business' ? businessMetrics(state) : null;
       return resp({
         kind: 'answer', title: ok ? 'Yes, with care' : 'Not yet', tone: ok ? 'pos' : 'neg',
-        summary: ok ? `Adding ${inr(amt)}/month keeps your balance positive for the next 6 months, ending around ${inr(alt[5].balance, { compact: true })}.` : `A ${inr(amt)}/month commitment would push your balance negative by ${alt.find((r) => r.balance < 0)?.label}.`,
-        metrics: [{ label: 'New monthly cost', value: inr(amt) }, { label: 'Balance in 6 mo', value: inr(alt[5].balance, { compact: true }), tone: ok ? 'pos' : 'neg' },
-          runway ? { label: 'Runway after', value: `${(runway.cash / (runway.avgExp + amt)).toFixed(1)} mo` } : { label: 'Monthly income', value: inr(monthlyIncome) }],
+        summary: ok ? `Adding ${money(amt)}/month keeps your balance positive for the next 6 months, ending around ${money(alt[5].balance, { compact: true })}.` : `A ${money(amt)}/month commitment would push your balance negative by ${alt.find((r) => r.balance < 0)?.label}.`,
+        metrics: [{ label: 'New monthly cost', value: money(amt) }, { label: 'Balance in 6 mo', value: money(alt[5].balance, { compact: true }), tone: ok ? 'pos' : 'neg' },
+          runway ? { label: 'Runway after', value: `${(runway.cash / (runway.avgExp + amt)).toFixed(1)} mo` } : { label: 'Monthly income', value: money(monthlyIncome) }],
         chart: chartOf(forecast(state, world, 6), alt),
       });
     }
@@ -131,18 +131,18 @@ export function localInterpret(text: string, state: AppState): AIResult {
     if (avail - amt >= buffer) {
       return resp({
         kind: 'answer', title: `Yes — you can afford the ${item}`, tone: 'pos',
-        summary: `After paying ${inr(amt)}, you'd still have ${inr(avail - amt)} — more than a month of expenses (${inr(buffer)}) as a cushion.`,
-        metrics: [{ label: 'Available now', value: inr(avail, { compact: true }) }, { label: 'After purchase', value: inr(avail - amt, { compact: true }), tone: 'pos' }, { label: 'Safety cushion', value: inr(buffer, { compact: true }) }],
+        summary: `After paying ${money(amt)}, you'd still have ${money(avail - amt)} — more than a month of expenses (${money(buffer)}) as a cushion.`,
+        metrics: [{ label: 'Available now', value: money(avail, { compact: true }) }, { label: 'After purchase', value: money(avail - amt, { compact: true }), tone: 'pos' }, { label: 'Safety cushion', value: money(buffer, { compact: true }) }],
         chart: chartOf(fc.slice(0, 6), forecast(state, world, 6, { oneTime: amt })),
       });
     }
     const when = fc.find((r) => r.balance - amt >= buffer);
     const monthsAway = when ? fc.indexOf(when) : null;
-    const g = { name: cap(item === 'this' ? 'Planned purchase' : item), kind: 'custom', target: amt, current: 0, monthly: Math.ceil(amt / Math.max(1, monthsAway || 6) / 500) * 500, targetDate: ymd(when ? new Date(when.key + '-01') : addMonths(now, 6)) };
+    const g = { name: cap(item === 'this' ? 'Planned purchase' : item), kind: 'custom', target: amt, current: 0, monthly: Math.ceil(amt / Math.max(1, monthsAway || 6) / 500) * 500, targetDate: ymd(when ? parseDate(when.key + '-01') : addMonths(now, 6)) };
     return resp({
       kind: 'answer', title: when ? `Not today — comfortably by ${monthLabel(when.key, true)}` : 'Not in the next 12 months', tone: 'neg',
-      summary: when ? `Buying now would leave ${inr(avail - amt)}, below your one-month cushion of ${inr(buffer)}. Saving ${inr(g.monthly)}/month gets you there in ${monthsAway} month${(monthsAway || 0) > 1 ? 's' : ''}.` : `Your projected surplus isn't large enough yet. Consider a smaller budget or a longer savings plan.`,
-      metrics: [{ label: 'Available now', value: inr(avail, { compact: true }) }, { label: 'Price', value: inr(amt, { compact: true }) }, { label: 'Save monthly', value: inr(g.monthly) }],
+      summary: when ? `Buying now would leave ${money(avail - amt)}, below your one-month cushion of ${money(buffer)}. Saving ${money(g.monthly)}/month gets you there in ${monthsAway} month${(monthsAway || 0) > 1 ? 's' : ''}.` : `Your projected surplus isn't large enough yet. Consider a smaller budget or a longer savings plan.`,
+      metrics: [{ label: 'Available now', value: money(avail, { compact: true }) }, { label: 'Price', value: money(amt, { compact: true }) }, { label: 'Save monthly', value: money(g.monthly) }],
       chart: chartOf(fc.slice(0, 6), forecast(state, world, 6, { oneTime: amt })),
       actions: [{ label: `Create “${g.name}” goal`, ops: [add('goals', g)] }],
     });
@@ -159,9 +159,9 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const saved = rows.reduce((s, r) => s + (r.income - r.expense), 0) - (fc[0].income - fc[0].expense) + (fc[0].balance - avail);
     const end = fc[idx].balance;
     return resp({
-      kind: 'answer', title: /save/.test(t) ? `About ${inr(Math.max(0, saved), { compact: true })} by ${monthLabel(fc[idx].key, true)}` : `${inr(end, { compact: true })} by ${monthLabel(fc[idx].key, true)}`,
-      summary: `Based on your recurring income, bills${state.loans.length ? ', EMIs' : ''}, planned trips and typical spending of ${inr(baselineVariable(state, world))}/month.${rows.some((r) => r.trips) ? ' Includes upcoming trip costs.' : ''}`,
-      metrics: [{ label: 'Today', value: inr(avail, { compact: true }) }, { label: 'Projected', value: inr(end, { compact: true }), tone: end >= avail ? 'pos' : 'neg' }, { label: 'Avg. monthly surplus', value: inr(saved / Math.max(1, idx + 1), { compact: true }) }],
+      kind: 'answer', title: /save/.test(t) ? `About ${money(Math.max(0, saved), { compact: true })} by ${monthLabel(fc[idx].key, true)}` : `${money(end, { compact: true })} by ${monthLabel(fc[idx].key, true)}`,
+      summary: `Based on your recurring income, bills${state.loans.length ? ', EMIs' : ''}, planned trips and typical spending of ${money(baselineVariable(state, world))}/month.${rows.some((r) => r.trips) ? ' Includes upcoming trip costs.' : ''}`,
+      metrics: [{ label: 'Today', value: money(avail, { compact: true }) }, { label: 'Projected', value: money(end, { compact: true }), tone: end >= avail ? 'pos' : 'neg' }, { label: 'Avg. monthly surplus', value: money(saved / Math.max(1, idx + 1), { compact: true }) }],
       chart: chartOf(rows.length > 1 ? rows : fc.slice(0, 6)),
     });
   }
@@ -175,9 +175,9 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const daily = free / daysLeft;
     const span = /week/.test(t) ? 7 : /today/.test(t) ? 1 : daysLeft;
     return resp({
-      kind: 'answer', title: `${inr(daily * span)} ${span === 7 ? 'this week' : span === 1 ? 'today' : 'until month end'}`, tone: 'pos',
-      summary: `That's ${inr(daily)}/day for the next ${daysLeft} days, after setting aside upcoming bills${cyc ? ' until your next pocket money' : ''}.`,
-      metrics: [{ label: 'Free to spend', value: inr(free) }, { label: 'Per day', value: inr(daily) }, { label: 'Days left', value: String(daysLeft) }],
+      kind: 'answer', title: `${money(daily * span)} ${span === 7 ? 'this week' : span === 1 ? 'today' : 'until month end'}`, tone: 'pos',
+      summary: `That's ${money(daily)}/day for the next ${daysLeft} days, after setting aside upcoming bills${cyc ? ' until your next pocket money' : ''}.`,
+      metrics: [{ label: 'Free to spend', value: money(free) }, { label: 'Per day', value: money(daily) }, { label: 'Days left', value: String(daysLeft) }],
     });
   }
 
@@ -189,10 +189,10 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const isProfit = /profit|revenue/.test(t);
     const dNet = a.net - b.net, dExp = a.expense - b.expense, dInc = a.income - b.income;
     return resp({
-      kind: 'answer', title: isProfit ? `Profit ${dNet >= 0 ? 'rose' : 'fell'} ${inr(Math.abs(dNet), { compact: true })} in ${monthLabel(mkey(addMonths(now, -1)))}` : `Spending ${dExp >= 0 ? 'rose' : 'fell'} ${inr(Math.abs(dExp), { compact: true })} in ${monthLabel(mkey(addMonths(now, -1)))}`,
-      summary: isProfit ? `Revenue ${dInc >= 0 ? 'grew' : 'dropped'} by ${inr(Math.abs(dInc), { compact: true })} while expenses ${dExp >= 0 ? 'grew' : 'fell'} by ${inr(Math.abs(dExp), { compact: true })}.` : `Compared with the month before. The biggest movers:`,
-      bullets: cats.map((x) => `${x.c}: ${x.d >= 0 ? '+' : '−'}${inr(Math.abs(x.d)).replace('−', '')}`),
-      metrics: [{ label: monthLabel(mkey(addMonths(now, -2))), value: inr(isProfit ? b.net : b.expense, { compact: true }) }, { label: monthLabel(mkey(addMonths(now, -1))), value: inr(isProfit ? a.net : a.expense, { compact: true }), tone: (isProfit ? dNet >= 0 : dExp <= 0) ? 'pos' : 'neg' }],
+      kind: 'answer', title: isProfit ? `Profit ${dNet >= 0 ? 'rose' : 'fell'} ${money(Math.abs(dNet), { compact: true })} in ${monthLabel(mkey(addMonths(now, -1)))}` : `Spending ${dExp >= 0 ? 'rose' : 'fell'} ${money(Math.abs(dExp), { compact: true })} in ${monthLabel(mkey(addMonths(now, -1)))}`,
+      summary: isProfit ? `Revenue ${dInc >= 0 ? 'grew' : 'dropped'} by ${money(Math.abs(dInc), { compact: true })} while expenses ${dExp >= 0 ? 'grew' : 'fell'} by ${money(Math.abs(dExp), { compact: true })}.` : `Compared with the month before. The biggest movers:`,
+      bullets: cats.map((x) => `${x.c}: ${x.d >= 0 ? '+' : '−'}${money(Math.abs(x.d)).replace('−', '')}`),
+      metrics: [{ label: monthLabel(mkey(addMonths(now, -2))), value: money(isProfit ? b.net : b.expense, { compact: true }) }, { label: monthLabel(mkey(addMonths(now, -1))), value: money(isProfit ? a.net : a.expense, { compact: true }), tone: (isProfit ? dNet >= 0 : dExp <= 0) ? 'pos' : 'neg' }],
     });
   }
 
@@ -206,8 +206,8 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const monthsNeeded = when ? fc.indexOf(when) : Math.ceil((price + monthlyExp - avail) / surplus);
     return resp({
       kind: 'answer', title: `Around ${monthLabel(mkey(addMonths(now, monthsNeeded)), true)}`,
-      summary: `${amt ? '' : `Assuming ~${inr(price, { compact: true })} for a ${k || 'purchase'}. `}At your current surplus of ~${inr(surplus, { compact: true })}/month, you'd reach the price plus a one-month cushion in ${monthsNeeded} months.`,
-      metrics: [{ label: 'Target', value: inr(price, { compact: true }) }, { label: 'Monthly surplus', value: inr(surplus, { compact: true }) }, { label: 'Months', value: String(monthsNeeded) }],
+      summary: `${amt ? '' : `Assuming ~${money(price, { compact: true })} for a ${k || 'purchase'}. `}At your current surplus of ~${money(surplus, { compact: true })}/month, you'd reach the price plus a one-month cushion in ${monthsNeeded} months.`,
+      metrics: [{ label: 'Target', value: money(price, { compact: true }) }, { label: 'Monthly surplus', value: money(surplus, { compact: true }) }, { label: 'Months', value: String(monthsNeeded) }],
       actions: [{ label: 'Turn into a goal', ops: [add('goals', { name: cap(k || 'Big purchase'), kind: k || 'custom', target: price, current: 0, monthly: Math.round(surplus / 500) * 500, targetDate: ymd(addMonths(now, monthsNeeded)) })] }],
     });
   }
@@ -218,10 +218,10 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const last = monthSummary(state, mkey(addMonths(now, -1)), world).byCategory;
     const top = Object.entries(last).sort((a, b) => b[1] - a[1]).slice(0, 6);
     return resp({
-      kind: 'answer', title: `A ${inr(inc, { compact: true })} monthly plan`,
+      kind: 'answer', title: `A ${money(inc, { compact: true })} monthly plan`,
       summary: 'Built on a 50 / 30 / 20 split, tuned to how you actually spent last month.',
-      metrics: [{ label: 'Needs · 50%', value: inr(inc * 0.5) }, { label: 'Wants · 30%', value: inr(inc * 0.3) }, { label: 'Save · 20%', value: inr(inc * 0.2), tone: 'pos' }],
-      bullets: top.map(([c, v]) => `${c}: spent ${inr(v)} → suggest ${inr(Math.round((v * 0.9) / 100) * 100)}`),
+      metrics: [{ label: 'Needs · 50%', value: money(inc * 0.5) }, { label: 'Wants · 30%', value: money(inc * 0.3) }, { label: 'Save · 20%', value: money(inc * 0.2), tone: 'pos' }],
+      bullets: top.map(([c, v]) => `${c}: spent ${money(v)} → suggest ${money(Math.round((v * 0.9) / 100) * 100)}`),
     });
   }
 
@@ -235,8 +235,8 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const monthly = Math.ceil(target / months / 500) * 500;
     return resp({
       kind: 'action', title: `${dest} trip savings plan`,
-      summary: `A ${10}-day ${dest} trip costs roughly ${inr(target, { compact: true })}. Saving ${inr(monthly)}/month gets you there by ${monthLabel(mkey(when), true)}.`,
-      metrics: [{ label: 'Estimated cost', value: inr(target, { compact: true }) }, { label: 'Monthly', value: inr(monthly) }, { label: 'Months', value: String(months) }],
+      summary: `A ${10}-day ${dest} trip costs roughly ${money(target, { compact: true })}. Saving ${money(monthly)}/month gets you there by ${monthLabel(mkey(when), true)}.`,
+      metrics: [{ label: 'Estimated cost', value: money(target, { compact: true }) }, { label: 'Monthly', value: money(monthly) }, { label: 'Months', value: String(months) }],
       actions: [{ label: 'Create goal', ops: [add('goals', { name: `${dest} trip`, kind: 'trip', target, current: 0, monthly, targetDate: ymd(when) })] }],
     });
   }
@@ -250,9 +250,9 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const e = emi(amt, rate, n);
     const interest = e * n - amt;
     return resp({
-      kind: 'action', title: `${cap(type)} loan · ${inr(amt, { compact: true })}`,
-      summary: `At ${rate}% for ${n} months, your EMI is ${inr(e)}. You'll pay ${inr(interest, { compact: true })} in interest overall. I'll add it to your monthly forecast from next month.`,
-      metrics: [{ label: 'Monthly EMI', value: inr(e) }, { label: 'Total interest', value: inr(interest, { compact: true }), tone: 'neg' }, { label: 'Total payable', value: inr(e * n, { compact: true }) }],
+      kind: 'action', title: `${cap(type)} loan · ${money(amt, { compact: true })}`,
+      summary: `At ${rate}% for ${n} months, your EMI is ${money(e)}. You'll pay ${money(interest, { compact: true })} in interest overall. I'll add it to your monthly forecast from next month.`,
+      metrics: [{ label: 'Monthly EMI', value: money(e) }, { label: 'Total interest', value: money(interest, { compact: true }), tone: 'neg' }, { label: 'Total payable', value: money(e * n, { compact: true }) }],
       actions: [{ label: 'Add loan', ops: [add('loans', { name: `${cap(type)} loan`, type, principal: amt, rate, tenureMonths: n, startDate: ymd(now), world })] }],
     });
   }
@@ -272,8 +272,8 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const normal = row ? row.expense - row.trips : monthlyExp;
     return resp({
       kind: 'action', title: `${dest} · ${days} days in ${monthLabel(key, true)}`,
-      summary: `Estimated ${inr(total)}. Your ${monthLabel(key, true).split(' ')[0]} spending becomes ${inr(normal + total)} — normally ${inr(normal)} plus ${dest} ${inr(total)}.`,
-      metrics: [{ label: 'Normal month', value: inr(normal, { compact: true }) }, { label: `${dest} trip`, value: `+${inr(total, { compact: true })}` }, { label: `${monthLabel(key)} total`, value: inr(normal + total, { compact: true }), tone: 'neg' }],
+      summary: `Estimated ${money(total)}. Your ${monthLabel(key, true).split(' ')[0]} spending becomes ${money(normal + total)} — normally ${money(normal)} plus ${dest} ${money(total)}.`,
+      metrics: [{ label: 'Normal month', value: money(normal, { compact: true }) }, { label: `${dest} trip`, value: `+${money(total, { compact: true })}` }, { label: `${monthLabel(key)} total`, value: money(normal + total, { compact: true }), tone: 'neg' }],
       breakdown: budget,
       actions: [{ label: 'Create trip', ops: [add('trips', { destination: dest, start: ymd(start), end: ymd(addDays(start, days - 1)), budget, world })] }],
     });
@@ -287,10 +287,10 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const forWhat = (t.match(/for (?:a |an |my )?([a-z ]+?)(?: by| in|$)/) || [])[1];
     const surplus = (fc[11].balance - fc[0].balance) / 11;
     return resp({
-      kind: 'action', title: `Save ${inr(amt, { compact: true })} by ${monthLabel(mkey(when), true)}`,
-      summary: `That's ${inr(monthly)}/month for ${months} months. ${surplus >= monthly ? `Your projected surplus of ~${inr(surplus, { compact: true })}/month covers it.` : `That's more than your current surplus (~${inr(Math.max(0, surplus), { compact: true })}/mo) — you may need to trim spending.`}`,
+      kind: 'action', title: `Save ${money(amt, { compact: true })} by ${monthLabel(mkey(when), true)}`,
+      summary: `That's ${money(monthly)}/month for ${months} months. ${surplus >= monthly ? `Your projected surplus of ~${money(surplus, { compact: true })}/month covers it.` : `That's more than your current surplus (~${money(Math.max(0, surplus), { compact: true })}/mo) — you may need to trim spending.`}`,
       tone: surplus >= monthly ? 'pos' : 'neg',
-      metrics: [{ label: 'Monthly', value: inr(monthly) }, { label: 'Months', value: String(months) }, { label: 'Your surplus', value: inr(surplus, { compact: true }), tone: surplus >= monthly ? 'pos' : 'neg' }],
+      metrics: [{ label: 'Monthly', value: money(monthly) }, { label: 'Months', value: String(months) }, { label: 'Your surplus', value: money(surplus, { compact: true }), tone: surplus >= monthly ? 'pos' : 'neg' }],
       actions: [{ label: 'Create goal', ops: [add('goals', { name: cap(forWhat || 'Savings goal'), kind: 'custom', target: amt, current: 0, monthly, targetDate: ymd(when) })] }],
     });
   }
@@ -301,7 +301,7 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const from = state.accounts.find((a) => W(a) === (toPersonal ? 'business' : 'personal'));
     const to = state.accounts.find((a) => W(a) === (toPersonal ? 'personal' : 'business'));
     if (from && to) return resp({
-      kind: 'action', title: `Transfer ${inr(amt)} ${toPersonal ? 'Business → Personal' : 'Personal → Business'}`,
+      kind: 'action', title: `Transfer ${money(amt)} ${toPersonal ? 'Business → Personal' : 'Personal → Business'}`,
       summary: `This moves money between your worlds. It won't count as new income or as an expense — it only changes which side holds the cash.`,
       metrics: [{ label: 'From', value: from.name }, { label: 'To', value: to.name }],
       actions: [{ label: 'Record transfer', ops: [add('transactions', { type: 'transfer', amount: amt, fromAccountId: from.id, toAccountId: to.id, fromWorld: W(from), toWorld: W(to), date: ymd(now), note: toPersonal ? 'Owner draw → Personal' : 'Capital → Business', world: W(from), tags: [] })] }],
@@ -322,8 +322,8 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const item = { name: cap(name.trim()), type: isIncome ? 'income' : 'expense', amount, day, category: isIncome ? cap(name.trim()) : catOf(t + ' ' + name), accountId: acc?.id, world };
     return resp({
       kind: 'action', title: `${isIncome ? 'Recurring income' : 'Recurring payment'} · ${item.name}`,
-      summary: `${inr(amount)} ${isIncome ? 'arriving' : 'due'} on the ${day}${['th', 'st', 'nd', 'rd'][(day % 10 > 3 || ~~(day / 10) === 1) ? 0 : day % 10]} of every month${weekly ? ` (${inr(amt)}/week)` : ''}. This will appear in every future forecast.`,
-      metrics: [{ label: 'Monthly', value: inr(amount), tone: isIncome ? 'pos' : undefined }, { label: 'Yearly', value: inr(amount * 12, { compact: true }) }, { label: 'Category', value: item.category }],
+      summary: `${money(amount)} ${isIncome ? 'arriving' : 'due'} on the ${day}${['th', 'st', 'nd', 'rd'][(day % 10 > 3 || ~~(day / 10) === 1) ? 0 : day % 10]} of every month${weekly ? ` (${money(amt)}/week)` : ''}. This will appear in every future forecast.`,
+      metrics: [{ label: 'Monthly', value: money(amount), tone: isIncome ? 'pos' : undefined }, { label: 'Yearly', value: money(amount * 12, { compact: true }) }, { label: 'Category', value: item.category }],
       actions: [{ label: `Add ${isIncome ? 'income' : 'payment'}`, ops: [add('recurring', item)] }],
     });
   }
@@ -342,10 +342,10 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const item = { type, amount: amt, category, date, accountId: acc?.id, cardId: card?.id, note: cap(what.trim()), world, tags: [], tripId: tripMatch?.id };
     const cm = monthSummary(state, mkey(now), world);
     return resp({
-      kind: 'action', title: `${type === 'expense' ? '−' : '+'}${inr(amt)} · ${item.note}`,
+      kind: 'action', title: `${type === 'expense' ? '−' : '+'}${money(amt)} · ${item.note}`,
       summary: type === 'expense'
-        ? `Logged under ${category}${card ? ` on ${card.name}` : acc ? ` from ${acc.name}` : ''}${tripMatch ? `, part of your ${tripMatch.destination} trip` : ''}. ${category} this month: ${inr((cm.byCategory[category] || 0) + amt)}.`
-        : `Added to ${acc?.name || 'your account'}. Income this month: ${inr(cm.income + amt)}.`,
+        ? `Logged under ${category}${card ? ` on ${card.name}` : acc ? ` from ${acc.name}` : ''}${tripMatch ? `, part of your ${tripMatch.destination} trip` : ''}. ${category} this month: ${money((cm.byCategory[category] || 0) + amt)}.`
+        : `Added to ${acc?.name || 'your account'}. Income this month: ${money(cm.income + amt)}.`,
       metrics: [{ label: 'Category', value: category }, { label: 'Date', value: date === ymd(now) ? 'Today' : 'Yesterday' }, { label: 'Account', value: card?.name || acc?.name || '—' }],
       actions: [{ label: type === 'expense' ? 'Add expense' : 'Add income', ops: [add('transactions', item)] }],
       autoApply: true,
@@ -388,7 +388,7 @@ export async function interpret(text: string, state: AppState): Promise<AIResult
         ...history,
         { role: 'user', content: text }
       ],
-      tools: (await import('./groqTools')).groqTools,
+      tools: (await import('./groqTools')).groqTools as unknown as import('groq-sdk/resources/chat/completions').ChatCompletionTool[],
       tool_choice: 'auto'
     });
 
@@ -399,31 +399,40 @@ export async function interpret(text: string, state: AppState): Promise<AIResult
       return { id: uid(), q: text, at: Date.now(), kind: 'answer', title: 'Fyza', summary: msg?.content || 'I need more information.' };
     }
 
-    let toolResult: any = {};
+    let toolResult: Partial<AIResult> = {};
     const args = JSON.parse(call.function.arguments);
     
-    switch (call.function.name) {
-      case 'addTransaction': toolResult = tools.addTransaction(state, args.amount, args.category, args.type, args.date_str, args.note); break;
-      case 'addRecurring': toolResult = tools.addRecurring(state, args.amount, args.category, args.type, args.name, args.day, args.weekly); break;
-      case 'runWhatIf': toolResult = tools.runWhatIf(state, args.sc, args.desc); break;
-      case 'checkAffordability': toolResult = tools.checkAffordability(state, args.price, args.item, args.isMonthly); break;
-      case 'whenCanIAfford': toolResult = tools.whenCanIAfford(state, args.price, args.item); break;
-      case 'projectSavings': toolResult = tools.projectSavings(state, args.targetDateYMD); break;
-      case 'getSpendAllowance': toolResult = tools.getSpendAllowance(state, args.days); break;
-      case 'explainChanges': toolResult = tools.explainChanges(state); break;
-      case 'suggestBudget': toolResult = tools.suggestBudget(state); break;
-      case 'planTrip': toolResult = tools.planTrip(state, args.destination, args.days, undefined, args.targetDateYMD); break;
-      case 'addLoan': toolResult = tools.addLoan(state, args.amount, args.rate, args.tenureMonths, args.type); break;
-      case 'createGoal': toolResult = tools.createGoal(state, args.name, args.target, args.targetDateYMD); break;
-      case 'transferMoney': toolResult = tools.transferMoney(state, args.amount, args.toPersonal); break;
-      case 'getFinancialContext': toolResult = tools.getFinancialContext(state); break;
-      case 'searchTransactions': toolResult = tools.searchTransactions(state, args.keyword, args.category, args.type); break;
+    try {
+      switch (call.function.name) {
+        case 'addTransaction': toolResult = tools.addTransaction(state, args.amount, args.category, args.type, args.date_str, args.note); break;
+        case 'addRecurring': toolResult = tools.addRecurring(state, args.amount, args.category, args.type, args.name, args.day, args.weekly); break;
+        case 'runWhatIf': toolResult = tools.runWhatIf(state, args.sc, args.desc); break;
+        case 'checkAffordability': toolResult = tools.checkAffordability(state, args.price, args.item, args.isMonthly); break;
+        case 'whenCanIAfford': toolResult = tools.whenCanIAfford(state, args.price, args.item); break;
+        case 'projectSavings': toolResult = tools.projectSavings(state, args.targetDateYMD); break;
+        case 'getSpendAllowance': toolResult = tools.getSpendAllowance(state, args.days); break;
+        case 'explainChanges': toolResult = tools.explainChanges(state); break;
+        case 'suggestBudget': toolResult = tools.suggestBudget(state); break;
+        case 'planTrip': toolResult = tools.planTrip(state, args.destination, args.days, undefined, args.targetDateYMD); break;
+        case 'addLoan': toolResult = tools.addLoan(state, args.amount, args.rate, args.tenureMonths, args.type); break;
+        case 'createGoal': toolResult = tools.createGoal(state, args.name, args.target, args.targetDateYMD); break;
+        case 'transferMoney': toolResult = tools.transferMoney(state, args.amount, args.toPersonal); break;
+        case 'getFinancialContext': toolResult = tools.getFinancialContext(state); break;
+        case 'searchTransactions': toolResult = tools.searchTransactions(state, args.keyword, args.category, args.type); break;
+        case 'deleteTransaction': toolResult = tools.deleteTransaction(state, args.keyword, args.amount); break;
+        default: throw new tools.ToolError('RECORD_NOT_FOUND', 'Unknown tool requested.');
+      }
+    } catch (e: any) {
+      if (e instanceof tools.ToolError) {
+        return { id: uid(), q: text, at: Date.now(), kind: 'answer', title: 'Need more details', summary: e.message, tone: 'neg' };
+      }
+      throw e;
     }
 
     const synthesisResponse = await ai.chat.completions.create({
       model: 'openai/gpt-oss-20b',
       messages: [
-        { role: 'system', content: `Summarize the financial tool response. Be concise, premium, and calm. Keep the tone like Apple × Linear. Return the response in JSON format. Format money in ${activeCurrency().code} using the symbol ${cur()}; use only numbers present in the tool response.` },
+        { role: 'system', content: `Summarize the financial tool response. Be concise, premium, and calm. Keep the tone like Apple × Linear. Return the response in JSON format. Format money in ${activeCurrency().code} using the symbol ${cur()}; use only numbers present in the tool response. Never invent financial facts or say an action was completed if it wasn't.` },
         ...history, 
         { role: 'user', content: text },
         msg,
@@ -432,16 +441,16 @@ export async function interpret(text: string, state: AppState): Promise<AIResult
       response_format: { type: 'json_object' }
     });
 
-    let parsed: any = {};
+    let parsed: Partial<AIResult> = {};
     try {
       parsed = JSON.parse(synthesisResponse.choices[0]?.message?.content || '{}');
     } catch(e) {}
 
     return {
       id: uid(), q: text, at: Date.now(),
-      kind: toolResult.kind,
-      title: parsed.title || toolResult.title,
-      summary: parsed.summary || toolResult.summary,
+      kind: toolResult.kind || 'answer',
+      title: parsed.title || toolResult.title || '',
+      summary: parsed.summary || toolResult.summary || '',
       tone: parsed.tone || toolResult.tone,
       metrics: toolResult.metrics,
       chart: toolResult.chart,

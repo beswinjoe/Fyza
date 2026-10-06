@@ -1,15 +1,15 @@
-import { money } from '../engine/currency';
 import { useState, useEffect } from 'react';
 import { Plus, Plane, Sparkles, Trash2, AlertTriangle, Compass } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { inr, fmtDate, monthLabel } from '../engine/format';
+import { money, fmtDate, monthLabel } from '../engine/format';
 import { forecast, goalStats, tripTotal, tripSpent, tripDays, TRIP_PARTS, inWorld } from '../engine/finance';
 import { AreaChart, Seg, Ring, Bar, Card, Stat, Button, Badge, Input, Field, EmptyState, cn } from '../components/ui';
 import { AppState } from '../types/app';
+import { World } from '../types/finance';
 import { Dispatch } from 'react';
 import { Action } from '../types/store';
 
-function ForecastView({ state, world }: { state: AppState; world: any }) {
+function ForecastView({ state, world }: { state: AppState; world: World }) {
   const fc = forecast(state, world, 6);
   const [sel, setSel] = useState(0);
   const empty = state.transactions.filter(inWorld(world)).length === 0 && state.recurring.filter(inWorld(world)).length === 0;
@@ -40,14 +40,14 @@ function ForecastView({ state, world }: { state: AppState; world: any }) {
                 {x.pressure && <AlertTriangle size={12} className="text-warning" />}
                 {x.tripList.length > 0 && <Plane size={12} />}
               </div>
-              <div className={cn("num mt-1.5 text-[15px] font-semibold", x.net >= 0 ? "text-positive" : "text-negative")}>{inr(x.net, { compact: true, sign: true })}</div>
+              <div className={cn("num mt-1.5 text-[15px] font-semibold", x.net >= 0 ? "text-positive" : "text-negative")}>{money(x.net, { compact: true, sign: true })}</div>
             </button>
           ))}
         </div>
       </Card>
       <Card tone="primary" className="p-4 sm:p-6">
         <div className="text-eyebrow font-medium uppercase text-foreground-subtle">{monthLabel(r.key, true)}</div>
-        <div className="num my-1.5 text-[32px] font-semibold tracking-tight text-foreground">{inr(r.balance)}</div>
+        <div className="num my-1.5 text-[32px] font-semibold tracking-tight text-foreground">{money(r.balance)}</div>
         <div className="text-[13px] text-foreground-subtle">Expected balance at month end</div>
         <div className="my-5 h-px bg-border" />
         <div className="flex flex-col gap-3">
@@ -57,17 +57,17 @@ function ForecastView({ state, world }: { state: AppState; world: any }) {
             ['EMIs', -r.emis] as const,
             ['Everyday spending', -r.variable] as const,
             ...(sel === 0 ? [['Already spent', -(r.expense - r.recurring - r.emis - r.variable - r.trips - r.oneTime - r.goals)] as const] : []),
-            ...r.tripList.map((t: any) => [`✈ ${t.name}`, -t.amount, 'text-warning'] as const),
-            ...r.goalList.map((g: any) => [`🎯 ${g.name}`, -g.amount, 'text-accent'] as const),
+            ...r.tripList.map((t: { name: string, amount: number }) => [`✈ ${t.name}`, -t.amount, 'text-warning'] as const),
+            ...r.goalList.map((g: { name: string, amount: number }) => [`🎯 ${g.name}`, -g.amount, 'text-accent'] as const),
           ].filter(([, v]) => Math.round(v) !== 0).map(([l, v, tone]) => (
-            <div key={l} className="flex items-center justify-between text-[13.5px]"><span className="text-foreground-muted">{l}</span><span className={cn('num font-medium', tone)}>{inr(v, { sign: true })}</span></div>
+            <div key={l} className="flex items-center justify-between text-[13.5px]"><span className="text-foreground-muted">{l}</span><span className={cn('num font-medium', tone)}>{money(v, { sign: true })}</span></div>
           ))}
         </div>
-        <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-[14px] font-semibold"><span>Net</span><span className={cn('num', r.net >= 0 ? 'text-positive' : 'text-negative')}>{inr(r.net, { sign: true })}</span></div>
+        <div className="mt-4 flex items-center justify-between border-t border-border pt-4 text-[14px] font-semibold"><span>Net</span><span className={cn('num', r.net >= 0 ? 'text-positive' : 'text-negative')}>{money(r.net, { sign: true })}</span></div>
         {r.tripList.length > 0 && (
           <div className="mt-6 flex gap-3 rounded-xl bg-surface-muted/60 p-4 text-[13px] leading-relaxed">
             <Sparkles className="size-4 shrink-0 text-accent" />
-            <p className="text-foreground-subtle">Normal {r.label} expenses would be about <b className="text-foreground">{inr(r.expense - r.tripList.reduce((s, t) => s + t.amount, 0))}</b>. With {r.tripList.map((t) => t.name).join(', ')} ({inr(r.tripList.reduce((s, t) => s + t.amount, 0))}), the month totals <b className="text-foreground">{inr(r.expense)}</b>.</p>
+            <p className="text-foreground-subtle">Normal {r.label} expenses would be about <b className="text-foreground">{money(r.expense - r.tripList.reduce((s, t) => s + t.amount, 0))}</b>. With {r.tripList.map((t) => t.name).join(', ')} ({money(r.tripList.reduce((s, t) => s + t.amount, 0))}), the month totals <b className="text-foreground">{money(r.expense)}</b>.</p>
           </div>
         )}
       </Card>
@@ -88,15 +88,15 @@ function GoalsView({ state, dispatch, openAdd, openItem }: { state: AppState; di
             </div>
             <div className="my-5 flex items-center gap-4">
               <Ring value={s.progress} size={56} stroke={5} color={s.onTrack ? 'var(--accent)' : 'var(--warning)'} />
-              <div><div className="text-[16px] font-semibold tracking-tight text-foreground">{g.name}</div><div className="num text-foreground-muted">{inr(g.current)} <span className="text-[14px] text-foreground-subtle">/ {inr(g.target, { compact: true })}</span></div></div>
+              <div><div className="text-[16px] font-semibold tracking-tight text-foreground">{g.name}</div><div className="num text-foreground-muted">{money(g.current)} <span className="text-[14px] text-foreground-subtle">/ {money(g.target, { compact: true })}</span></div></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Stat label="Monthly" value={inr(g.monthly)} size="sm" />
+              <Stat label="Monthly" value={money(g.monthly)} size="sm" />
               <Stat label="Completes" value={s.eta ? monthLabel(s.eta, true) : '—'} size="sm" />
             </div>
-            {!s.onTrack && s.required && <div className="mt-3 text-[12.5px] text-foreground-subtle">Needs {inr(s.required)}/mo to hit {fmtDate(g.targetDate, true)}.</div>}
+            {!s.onTrack && s.required && <div className="mt-3 text-[12.5px] text-foreground-subtle">Needs {money(s.required)}/mo to hit {fmtDate(g.targetDate, true)}.</div>}
             <div className="mt-4 flex gap-2" onClick={(e) => e.stopPropagation()}>
-              <Button size="sm" onClick={() => dispatch({ type: 'update', col: 'goals', id: g.id, patch: { current: Math.min(g.target, g.current + (+g.monthly || 1000)) } })}>+ {inr(g.monthly || 1000, { compact: true })}</Button>
+              <Button size="sm" onClick={() => dispatch({ type: 'update', col: 'goals', id: g.id, patch: { current: Math.min(g.target, g.current + (+g.monthly || 1000)) } })}>+ {money(g.monthly || 1000, { compact: true })}</Button>
             </div>
           </Card>
         );
@@ -119,15 +119,15 @@ function TripsView({ state, openAdd, openItem }: { state: AppState; openAdd: (t:
                 <div className="text-meta text-foreground-subtle">{fmtDate(t.start)} – {fmtDate(t.end, true)} · {tripDays(t)} days</div>
               </div>
               <div className="text-right">
-                <div className="num text-[20px] font-semibold text-foreground">{inr(total)}</div>
-                <div className="text-[12px] text-foreground-subtle">{inr(total / tripDays(t))}/day</div>
+                <div className="num text-[20px] font-semibold text-foreground">{money(total)}</div>
+                <div className="text-[12px] text-foreground-subtle">{money(total / tripDays(t))}/day</div>
               </div>
             </div>
             <div className="mt-6 grid grid-cols-3 gap-3">
-              {TRIP_PARTS.map((p) => <Stat key={p} label={<span className="capitalize">{p}</span>} value={inr(t.budget[p] || 0)} size="sm" />)}
+              {TRIP_PARTS.map((p) => <Stat key={p} label={<span className="capitalize">{p}</span>} value={money(t.budget[p] || 0)} size="sm" />)}
             </div>
             <div className="mt-6">
-              <div className="mb-2 flex items-center justify-between text-[12.5px] text-foreground-subtle"><span>Spent so far</span><span className="num">{inr(spent)} / {inr(total)}</span></div>
+              <div className="mb-2 flex items-center justify-between text-[12.5px] text-foreground-subtle"><span>Spent so far</span><span className="num">{money(spent)} / {money(total)}</span></div>
               <Bar value={total ? spent / total : 0} tone="accent" />
             </div>
           </Card>
@@ -147,16 +147,18 @@ const PRESETS: Record<string, () => [string, Record<string, number>][]> = {
   business: () => [['Revenue −20%', { revenuePct: -0.2 }], [`Hire at ${money(40000, { compact: true })}/mo`, { expenseDelta: 40000 }], [`New ${money(200000, { compact: true })} campaign`, { oneTime: 200000, oneTimeMonth: 1 }], ['Revenue +30%', { revenuePct: 0.3 }]],
 };
 
-function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: Dispatch<Action>; world: any }) {
+function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: Dispatch<Action>; world: World }) {
   const [sc, setSc] = useState<Record<string, number>>({});
   const [name, setName] = useState('');
-  const base = forecast(state, world, 12), alt = forecast(state, world, 12, { ...sc, expenseDelta: (sc.expenseDelta || 0) + (sc.monthlySave || 0) });
+  const parsedSc = Object.fromEntries(Object.entries(sc).map(([k, v]) => [k, Number(v) || 0]));
+  const base = forecast(state, world, 12);
+  const alt = forecast(state, world, 12, { ...parsedSc, expenseDelta: (parsedSc.expenseDelta || 0) + (parsedSc.monthlySave || 0) });
   const d = alt[11].balance - base[11].balance;
   const minAlt = Math.min(...alt.map((r) => r.balance));
   
   const num = (k: string, label: string, step = 1000, suffix = '') => (
     <Field label={label}>
-      <Input type="number" step={step} value={sc[k] ?? ''} placeholder={'0' + suffix} onChange={(e) => setSc({ ...sc, [k]: e.target.value === '' ? undefined as any : +e.target.value })} />
+      <Input type="number" step={step} value={sc[k] ?? ''} placeholder={'0' + suffix} allowNegative={k.includes('Delta')} onChange={(e) => setSc({ ...sc, [k]: e.target.value } as any)} />
     </Field>
   );
   
@@ -188,7 +190,7 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
             ].map((m) => (
               <div key={m.l} className="bg-surface p-4">
                 <div className="text-eyebrow mb-1 font-medium uppercase text-foreground-subtle">{m.l}</div>
-                <div className={cn("num text-[15px] font-semibold", m.t)}>{inr(m.v, { compact: true, sign: m.s })}</div>
+                <div className={cn("num text-[15px] font-semibold", m.t)}>{money(m.v, { compact: true, sign: m.s })}</div>
               </div>
             ))}
           </div>
@@ -196,7 +198,7 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
         {(sc.monthlySave || 0) > 0 && (
           <div className="flex gap-3 rounded-xl border border-border bg-surface-muted/50 p-4 text-[13.5px] leading-relaxed">
             <Sparkles className="size-4 shrink-0 text-accent" />
-            <p className="text-foreground-subtle">Setting aside <b className="text-foreground">{inr(sc.monthlySave)}</b> monthly builds <b className="text-foreground">{inr(sc.monthlySave * 11, { compact: true })}</b> in savings over the year, while your spending balance stays {minAlt >= 0 ? 'positive' : <b className="text-negative">under pressure</b>}.</p>
+            <p className="text-foreground-subtle">Setting aside <b className="text-foreground">{money(sc.monthlySave)}</b> monthly builds <b className="text-foreground">{money(sc.monthlySave * 11, { compact: true })}</b> in savings over the year, while your spending balance stays {minAlt >= 0 ? 'positive' : <b className="text-negative">under pressure</b>}.</p>
           </div>
         )}
       </div>
@@ -220,7 +222,7 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
           </div>
           <div className="mt-5 flex gap-2">
             <Input className="flex-1" placeholder="Name this scenario" value={name} onChange={(e) => setName(e.target.value)} />
-            <Button variant="primary" disabled={!Object.values(sc).some(Boolean)} onClick={() => { dispatch({ type: 'add', col: 'scenarios', item: { name: name || 'Untitled scenario', sc, world } } as any); setName(''); }}>Save</Button>
+            <Button variant="primary" disabled={!Object.values(sc).some(Boolean)} onClick={() => { dispatch({ type: 'add', col: 'scenarios', item: { name: name || 'Untitled scenario', sc, world } } as Action); setName(''); }}>Save</Button>
           </div>
           <Button variant="ghost" size="sm" className="mt-2 w-full" onClick={() => setSc({})}>Reset</Button>
         </Card>
@@ -230,10 +232,10 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
             <div className="mb-3 text-[14px] font-semibold text-foreground">Saved scenarios</div>
             <div className="flex flex-col gap-1">
               {saved.map((s) => (
-                <button key={s.id} className="group flex items-center justify-between rounded-lg p-2 text-left hover:bg-surface-muted" onClick={() => setSc(s.sc as any)}>
+                <button key={s.id} className="group flex items-center justify-between rounded-lg p-2 text-left hover:bg-surface-muted" onClick={() => setSc(s.sc as unknown as Record<string, number>)}>
                   <div>
                     <div className="text-[13px] font-medium text-foreground">{s.name}</div>
-                    <div className="num text-[12px] text-foreground-subtle">{inr(forecast(state, world, 12, s.sc)[11].balance, { compact: true })} in 12 mo</div>
+                    <div className="num text-[12px] text-foreground-subtle">{money(forecast(state, world, 12, s.sc)[11].balance, { compact: true })} in 12 mo</div>
                   </div>
                   <Button variant="ghost" size="sm" icon className="opacity-0 group-hover:opacity-100" onClick={(e) => { e.stopPropagation(); dispatch({ type: 'remove', col: 'scenarios', id: s.id }); }}><Trash2 className="size-4 text-negative" /></Button>
                 </button>
@@ -249,12 +251,12 @@ function ScenarioView({ state, dispatch, world }: { state: AppState; dispatch: D
 export default function PlansPage({ openAdd, openItem, initialTab = 'forecast' }: { openAdd: (t: string) => void; openItem: (t: string, id: string) => void; initialTab?: string }) {
   const { state, dispatch } = useStore();
   const [tab, setTab] = useState(initialTab);
-  const world = state.world as string;
+  const world = state.world;
 
   // Reset tab if world changes or initialTab changes
   useEffect(() => {
     setTab(initialTab);
-  }, [initialTab]);
+  }, [initialTab, world]);
 
   return (
     <div className="mx-auto max-w-[1040px] px-4 py-8 pb-24 sm:px-6 lg:px-8">

@@ -1,4 +1,4 @@
-export const groqTools: any[] = [
+export const groqTools: Record<string, unknown>[] = [
   {
     type: 'function',
     function: {
@@ -169,6 +169,18 @@ export const groqTools: any[] = [
       parameters: {
         type: 'object',
         properties: { keyword: { type: 'string' }, category: { type: 'string' }, type: { type: 'string', enum: ['income', 'expense'] } }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'deleteTransaction',
+      description: 'Delete an existing transaction',
+      parameters: {
+        type: 'object',
+        properties: { keyword: { type: 'string', description: 'Name or category of the transaction to delete' }, amount: { type: 'number', description: 'Amount of the transaction' } },
+        required: ['keyword']
       }
     }
   }

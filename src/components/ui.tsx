@@ -1,12 +1,63 @@
 import { cur } from '../engine/currency';
 import { useEffect, useId, useMemo, useRef, useState, ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, SelectHTMLAttributes, TextareaHTMLAttributes, forwardRef } from 'react';
 import { X, Wallet, Landmark, PiggyBank, Banknote, CreditCard, Utensils, ShoppingBag, Car, Home as HomeI, Receipt, Tv, Film, HeartPulse, GraduationCap, Plane, TrendingUp, Briefcase, Users, Megaphone, Server, Package, ArrowLeftRight, ShoppingCart, Coins, Target, CircleDollarSign, Check, ChevronDown } from 'lucide-react';
-import { inr } from '../engine/format';
+import { money } from '../engine/format';
 
 /* ================================================================
    Utilities
 ================================================================ */
 export const cn = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
+
+export function useNumericInput({ allowNegative = false, isNumeric = true, onChange }: { allowNegative?: boolean; isNumeric?: boolean; onChange?: (e: any) => void }) {
+  const [error, setError] = useState(false);
+
+  const validate = (val: string) => {
+    if (!val) return true;
+    if (val === '-' && allowNegative) return true;
+    const regex = allowNegative ? /^-?\d*\.?\d*$/ : /^\d*\.?\d*$/;
+    return regex.test(val) && !val.includes('e') && !val.includes('E');
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!isNumeric) return;
+    if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Tab' || e.key === 'Enter' || e.key === 'Escape' || e.key.startsWith('Arrow') || e.metaKey || e.ctrlKey) return;
+    
+    const val = e.currentTarget.value;
+    const start = e.currentTarget.selectionStart || 0;
+    
+    if (e.key === '-' && allowNegative && !val.includes('-') && start === 0) return;
+    if (e.key === '.' && !val.includes('.')) return;
+    if (/^[0-9]$/.test(e.key)) return;
+    
+    e.preventDefault();
+    setError(true);
+    setTimeout(() => setError(false), 800);
+  };
+
+  const onPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (!isNumeric) return;
+    const text = e.clipboardData.getData('text');
+    if (!validate(text)) {
+      e.preventDefault();
+      setError(true);
+      setTimeout(() => setError(false), 800);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isNumeric) {
+      const val = e.target.value;
+      if (val && !validate(val)) {
+        setError(true);
+        setTimeout(() => setError(false), 800);
+        return;
+      }
+    }
+    onChange?.(e);
+  };
+
+  return { error, props: { type: isNumeric ? 'text' : undefined, inputMode: isNumeric ? 'decimal' : undefined, onKeyDown, onPaste, onChange: handleChange } as const };
+}
 
 export const CAT_ICON: Record<string, React.ElementType> = {
   Food: Utensils, Groceries: ShoppingCart, Transport: Car, Rent: HomeI, Bills: Receipt, Subscriptions: Tv, Shopping: ShoppingBag, Entertainment: Film,
@@ -185,7 +236,7 @@ export const RowMeta = ({ title, sub }: { title: ReactNode; sub?: ReactNode }) =
    Money
 ================================================================ */
 export function Money({ v, compact, sign, className = '' }: { v: number | string; compact?: boolean; sign?: boolean; className?: string; split?: boolean }) {
-  return <span className={cn('num', className)}>{inr(v, { compact, sign })}</span>;
+  return <span className={cn('num', className)}>{money(v, { compact, sign })}</span>;
 }
 
 export function CountUp({ v, compact, className = '' }: { v: number; compact?: boolean; className?: string }) {
@@ -201,7 +252,7 @@ export function CountUp({ v, compact, className = '' }: { v: number; compact?: b
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [v]);
-  return <span className={cn('num', className)}>{inr(x, { compact })}</span>;
+  return <span className={cn('num', className)}>{money(x, { compact })}</span>;
 }
 
 /** Hero figure — splits the currency symbol so it reads as a premium number. */
@@ -272,9 +323,18 @@ export function Field({ label, hint, error, children, full, htmlFor, className }
   );
 }
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(({ className, ...p }, ref) => (
-  <input ref={ref} className={cn(CONTROL, p.type === 'number' && 'num', className)} {...p} />
-));
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { allowNegative?: boolean }>(({ className, type, onChange, allowNegative, ...p }, ref) => {
+  const isNumeric = type === 'number';
+  const num = useNumericInput({ isNumeric, allowNegative, onChange });
+  return (
+    <input
+      {...p}
+      {...(isNumeric ? num.props : { type, onChange })}
+      ref={ref}
+      className={cn(CONTROL, type === 'number' && 'num', className, num.error && "border-negative focus:border-negative focus:ring-negative/20 text-negative")}
+    />
+  );
+});
 Input.displayName = 'Input';
 
 export const Textarea = ({ className, ...p }: TextareaHTMLAttributes<HTMLTextAreaElement>) => (
@@ -289,17 +349,18 @@ export const Select = ({ className, children, ...p }: SelectHTMLAttributes<HTMLS
 );
 
 /** The primary amount input — large, currency-prefixed, tabular. */
-export function MoneyInput({ value, onChange, autoFocus, id, invalid, onBlur, placeholder = '0.00', size = 'lg' }: { value: number | string; onChange: (v: number | '') => void; autoFocus?: boolean; id?: string; invalid?: boolean; onBlur?: () => void; placeholder?: string; size?: 'md' | 'lg' }) {
+export function MoneyInput({ value, onChange, autoFocus, id, invalid, onBlur, placeholder = '0.00', size = 'lg', allowNegative = false }: { value: number | string; onChange: (v: string) => void; autoFocus?: boolean; id?: string; invalid?: boolean; onBlur?: () => void; placeholder?: string; size?: 'md' | 'lg'; allowNegative?: boolean }) {
   const big = size === 'lg';
+  const num = useNumericInput({ isNumeric: true, allowNegative, onChange: (e) => onChange(e.target.value) });
   return (
     <div className={cn('group relative flex items-center rounded-xl border bg-surface shadow-card transition-[border,box-shadow] duration-150 focus-within:ring-4',
-      invalid ? 'border-negative/50 focus-within:ring-negative/10' : 'border-border hover:border-border-strong focus-within:border-border-strong focus-within:ring-accent-soft',
+      (invalid || num.error) ? 'border-negative/50 focus-within:ring-negative/10' : 'border-border hover:border-border-strong focus-within:border-border-strong focus-within:ring-accent-soft',
       big ? 'h-16 px-4' : 'h-10 px-3')}>
-      <span className={cn('num select-none text-foreground-subtle', big ? 'mr-2 text-[28px] font-medium' : 'mr-1.5 text-body')}>{cur()}</span>
-      <input id={id} type="number" inputMode="decimal" step="any" min="0" autoFocus={autoFocus} aria-invalid={invalid || undefined}
-        className={cn('num w-full min-w-0 bg-transparent text-foreground outline-none placeholder:text-foreground-subtle/60', big ? 'font-display text-[32px] font-semibold tracking-[-0.03em]' : 'text-body')}
+      <span className={cn('num select-none', (invalid || num.error) ? 'text-negative/70' : 'text-foreground-subtle', big ? 'mr-2 text-[28px] font-medium' : 'mr-1.5 text-body')}>{cur()}</span>
+      <input id={id} autoFocus={autoFocus} aria-invalid={invalid || num.error || undefined}
+        className={cn('num w-full min-w-0 bg-transparent outline-none placeholder:text-foreground-subtle/60', (invalid || num.error) ? 'text-negative' : 'text-foreground', big ? 'font-display text-[32px] font-semibold tracking-[-0.03em]' : 'text-body')}
         placeholder={placeholder} value={value} onBlur={onBlur}
-        onChange={(e) => onChange(e.target.value === '' ? '' : +e.target.value)} />
+        {...num.props} />
     </div>
   );
 }
@@ -424,7 +485,7 @@ const Tip = ({ left, top, w, children }: { left: number; top: number; w: number;
 
 interface AreaSeries { name: string; values: number[]; color: string; dashed?: boolean; fill?: boolean; width?: number }
 
-export function AreaChart({ labels, series, height = 200, split, fmt = (v: number) => inr(v, { compact: true }), showAxis = true, externalHover, onHover }: { labels: string[]; series: AreaSeries[]; height?: number; split?: number; fmt?: (v: number) => string; showAxis?: boolean; externalHover?: number | null; onHover?: (i: number | null) => void }) {
+export function AreaChart({ labels, series, height = 200, split, fmt = (v: number) => money(v, { compact: true }), showAxis = true, externalHover, onHover }: { labels: string[]; series: AreaSeries[]; height?: number; split?: number; fmt?: (v: number) => string; showAxis?: boolean; externalHover?: number | null; onHover?: (i: number | null) => void }) {
   const [ref, w] = useWidth(600);
   const [internalHover, setInternalHover] = useState<number | null>(null);
   const hover = externalHover !== undefined ? externalHover : internalHover;
@@ -514,8 +575,8 @@ export function BarsChart({ labels, a, b, height = 180, names = ['Income', 'Expe
       {hover != null && (
         <Tip left={4 + slot * hover + slot / 2} top={h - (Math.max(a[hover], b[hover]) / max) * h} w={w}>
           <div className="mb-1 text-foreground-subtle">{labels[hover]}</div>
-          <div className="flex gap-3"><span className="text-foreground-muted">{names[0]}</span><b className="num ml-auto font-semibold">{inr(a[hover], { compact: true })}</b></div>
-          <div className="flex gap-3"><span className="text-foreground-muted">{names[1]}</span><b className="num ml-auto font-semibold">{inr(b[hover], { compact: true })}</b></div>
+          <div className="flex gap-3"><span className="text-foreground-muted">{names[0]}</span><b className="num ml-auto font-semibold">{money(a[hover], { compact: true })}</b></div>
+          <div className="flex gap-3"><span className="text-foreground-muted">{names[1]}</span><b className="num ml-auto font-semibold">{money(b[hover], { compact: true })}</b></div>
         </Tip>
       )}
     </div>
@@ -532,9 +593,11 @@ export const Legend = ({ items }: { items: { label: string; color: string; dashe
   </div>
 );
 
-/** Subtle AI glyph — a small accent dot, never neon. */
+import { Logo } from './Logo';
+
+/** Subtle AI glyph — now using the official Fyza fox mark. */
 export const AIMark = ({ className }: { className?: string }) => (
-  <span className={cn('relative inline-grid size-5 shrink-0 place-items-center rounded-md bg-accent-soft', className)} aria-hidden>
-    <span className="size-1.5 rounded-full bg-accent" />
+  <span className={cn('relative inline-grid size-6 shrink-0 place-items-center', className)} aria-hidden>
+    <Logo className="size-full" />
   </span>
 );

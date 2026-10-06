@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUp, CornerDownLeft, Check, Undo2, Home, LineChart, Compass, Building2, ArrowUpRight, ArrowDownLeft, Landmark, Target, Plane, MessageSquare, ArrowLeft } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { interpret, SUGGESTIONS } from '../engine/ai';
-import { inr } from '../engine/format';
+import { money } from '../engine/format';
 import { AreaChart, AIMark, Badge, Button, Eyebrow, Kbd, cn, toneText, toTone } from './ui';
 import { AppState } from '../types/app';
 import { AIResult } from '../types/ai';
@@ -57,7 +57,7 @@ export function AICard({ r, compact }: { r: AIResult; compact?: boolean }) {
         )}
         {live.breakdown && (
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {Object.entries(live.breakdown).map(([k, v]) => <Badge key={k}>{k[0].toUpperCase() + k.slice(1)} <b className="num font-semibold text-foreground">{inr(v, { compact: true })}</b></Badge>)}
+            {Object.entries(live.breakdown).map(([k, v]) => <Badge key={k}>{k[0].toUpperCase() + k.slice(1)} <b className="num font-semibold text-foreground">{money(v, { compact: true })}</b></Badge>)}
           </div>
         )}
         {live.chart && !compact && (

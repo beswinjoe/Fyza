@@ -42,14 +42,14 @@ export const CURRENCIES: CurrencyDef[] = [
 export const DEFAULT_CURRENCY = 'USD';
 
 let current: CurrencyDef = CURRENCIES[0];
-let nf = new Intl.NumberFormat(current.locale, { maximumFractionDigits: 0 });
+let nf = new Intl.NumberFormat(current.locale, { maximumFractionDigits: 2, minimumFractionDigits: 0 });
 
 export const findCurrency = (code?: string) => CURRENCIES.find((c) => c.code === code) || CURRENCIES[0];
 
 /** Called by the store whenever the workspace currency changes. */
 export function setActiveCurrency(code?: string) {
   current = findCurrency(code);
-  nf = new Intl.NumberFormat(current.locale, { maximumFractionDigits: 0 });
+  nf = new Intl.NumberFormat(current.locale, { maximumFractionDigits: 2, minimumFractionDigits: 0 });
 }
 export const activeCurrency = () => current;
 
@@ -63,9 +63,15 @@ export const symbolOf = (code: string = current.code) => {
 };
 export const cur = () => symbolOf();
 
+/** Safely correct floating point precision issues (e.g. 0.1 + 0.2). */
+export const cleanMoney = (n: number | string): number => {
+  const v = Number(n);
+  return isNaN(v) ? 0 : Math.round(v * 100) / 100;
+};
+
 /** Locale-aware money formatting in the workspace currency. */
 export function money(n: number | string, { compact = false, sign = false }: { compact?: boolean; sign?: boolean } = {}) {
-  const v = Math.round(Number(n) || 0);
+  const v = cleanMoney(n);
   const a = Math.abs(v);
   let body: string;
   if (compact && current.code === 'INR') {

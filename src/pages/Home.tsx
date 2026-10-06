@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { today, mkey, inr, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
+import { today, mkey, money, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
 import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
 import { Money, Bar, Icon, AreaChart, BarsChart, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
 import { TxRow } from './Activity';
@@ -57,13 +57,13 @@ function StudentHero({ state }: { state: AppState }) {
   return (
     <HeroShell eyebrow="Left until next pocket money" amount={c.remaining} badge={<Badge>{c.daysLeft} days · {fmtDate(c.next)}</Badge>}
       stats={<>
-        <Stat label="Pocket money" value={inr(c.amount)} />
-        <Stat label="Spent" value={inr(c.spent)} />
-        <Stat label="Daily pace" value={inr(c.rate)} />
-        <Stat label="Safe / day" value={inr(c.safeDaily)} tone="positive" />
+        <Stat label="Pocket money" value={money(c.amount)} />
+        <Stat label="Spent" value={money(c.spent)} />
+        <Stat label="Daily pace" value={money(c.rate)} />
+        <Stat label="Safe / day" value={money(c.safeDaily)} tone="positive" />
       </>}>
       <Bar value={c.progress} tone={c.progress > 0.85 ? 'neg' : 'accent'} className="mb-3 mt-1" />
-      At your current pace you'll likely have <b className={cn('num font-semibold', c.projected < 0 ? 'text-negative' : 'text-foreground')}>{inr(c.projected)}</b> left. Try to keep it under <b className="num font-semibold text-foreground">{inr(c.safeDaily)}/day</b>.
+      At your current pace you'll likely have <b className={cn('num font-semibold', c.projected < 0 ? 'text-negative' : 'text-foreground')}>{money(c.projected)}</b> left. Try to keep it under <b className="num font-semibold text-foreground">{money(c.safeDaily)}/day</b>.
     </HeroShell>
   );
 }
@@ -81,13 +81,13 @@ function PersonalHero({ state }: { state: AppState }) {
     <HeroShell eyebrow="Available trackable money" amount={Math.floor(avail)}
       badge={prev.expense > 0 && <Badge tone={d <= 0 ? 'positive' : 'negative'}>{d <= 0 ? '↓' : '↑'} Spending {Math.abs(Math.round(d * 100))}% vs last month</Badge>}
       stats={<>
-        <Stat label="Income" value={inr(s.income + s.transferIn)} />
-        <Stat label="Spent" value={inr(s.expense)} />
-        <Stat label="Cash flow" value={inr(flow, { sign: true })} tone={flow >= 0 ? 'positive' : 'negative'} />
-        <Stat label="Net worth" value={inr(nw.net, { compact: true })} />
+        <Stat label="Income" value={money(s.income + s.transferIn)} />
+        <Stat label="Spent" value={money(s.expense)} />
+        <Stat label="Cash flow" value={money(flow, { sign: true })} tone={flow >= 0 ? 'positive' : 'negative'} />
+        <Stat label="Net worth" value={money(nw.net, { compact: true })} />
       </>}>
       {s.income + s.expense > 0
-        ? <>So far in {monthLabel(key, true).split(' ')[0]} you've brought in <b className="num font-semibold text-foreground">{inr(s.income + s.transferIn)}</b> and spent <b className="num font-semibold text-foreground">{inr(s.expense)}</b>.</>
+        ? <>So far in {monthLabel(key, true).split(' ')[0]} you've brought in <b className="num font-semibold text-foreground">{money(s.income + s.transferIn)}</b> and spent <b className="num font-semibold text-foreground">{money(s.expense)}</b>.</>
         : <>No income or spending recorded in {monthLabel(key, true).split(' ')[0]} yet.</>}
     </HeroShell>
   );
@@ -106,7 +106,7 @@ export function FlowCard({ state, world }: { state: AppState; world: World }) {
           <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle mb-1">{mode === 'forecast' ? "Where you're heading" : 'Past 6 months'}</div>
           {mode === 'forecast' ? (
             <div className="text-[28px] font-semibold text-foreground leading-tight">
-              {inr(fc[5].balance, { compact: true })} <span className="text-[15px] font-medium text-foreground-muted">by {fc[5].label}</span>
+              {money(fc[5].balance, { compact: true })} <span className="text-[15px] font-medium text-foreground-muted">by {fc[5].label}</span>
             </div>
           ) : (
             <div className="text-[28px] font-semibold text-foreground leading-tight">History</div>
@@ -155,14 +155,14 @@ export function UpcomingCard({ state, world }: { state: AppState; world: World }
   const total = up.filter((u) => u.type === 'expense').reduce((s, u) => s + u.amount, 0);
   return (
     <Card className="p-5">
-      <SectionHeader icon={CalendarClock} title="Coming up" action={up.length > 0 && <span className="num text-meta text-foreground-subtle">{inr(total)} due · 3 wks</span>} />
+      <SectionHeader icon={CalendarClock} title="Coming up" action={up.length > 0 && <span className="num text-meta text-foreground-subtle">{money(total)} due · 3 wks</span>} />
       {up.length === 0 ? (
         <p className="py-4 text-[13px] text-foreground-subtle">Nothing due in the next three weeks. Recurring bills and EMIs appear here.</p>
       ) : up.map((u) => (
         <Row key={u.id + u.date}>
           <Icon as={catIcon(u.category || '')} size="sm" />
           <RowMeta title={u.name} sub={relDay(u.date)} />
-          <span className={cn('num text-body font-medium', u.type === 'income' && 'text-positive')}>{u.type === 'income' ? '+' : ''}{inr(u.amount)}</span>
+          <span className={cn('num text-body font-medium', u.type === 'income' && 'text-positive')}>{u.type === 'income' ? '+' : ''}{money(u.amount)}</span>
         </Row>
       ))}
     </Card>
@@ -233,7 +233,7 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
 }
 
 /* ---------- Adaptive Sidebar ---------- */
-function RightSidebar({ state, world, openItem, openAdd, openPalette }: any) {
+function RightSidebar({ state, world, openItem, openAdd, openPalette }: { state: AppState, world: World, openItem: OpenItem, openAdd: (t?: string) => void, openPalette: () => void }) {
   const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
   const accs = state.accounts.filter(inWorld(world));
   const loans = state.loans.filter(inWorld(world));
@@ -259,11 +259,11 @@ function RightSidebar({ state, world, openItem, openAdd, openPalette }: any) {
             <div className="group cursor-pointer rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong" onClick={() => openItem('trip', t.id)}>
               <div className="flex items-center justify-between"><div className="flex items-center gap-2 font-medium text-foreground"><Plane className="size-4 text-foreground-muted" /> {t.destination}</div><Badge>{daysBetween(today(), parseDate(t.start))} days</Badge></div>
               <div className="mt-3 flex items-center justify-between text-[13px]">
-                <div className="text-foreground-subtle">Budget</div><div className="num font-medium">{inr(tripTotal(t), { compact: true })}</div>
+                <div className="text-foreground-subtle">Budget</div><div className="num font-medium">{money(tripTotal(t), { compact: true })}</div>
               </div>
               <Bar value={tripSpent(state, t) / Math.max(1, tripTotal(t))} className="my-2" />
               <div className="flex items-center justify-between text-[13px]">
-                <div className="text-foreground-subtle">Remaining</div><div className="num font-medium text-foreground">{inr(Math.max(0, tripTotal(t) - tripSpent(state, t)), { compact: true })}</div>
+                <div className="text-foreground-subtle">Remaining</div><div className="num font-medium text-foreground">{money(Math.max(0, tripTotal(t) - tripSpent(state, t)), { compact: true })}</div>
               </div>
             </div>
           )}
@@ -282,7 +282,7 @@ function RightSidebar({ state, world, openItem, openAdd, openPalette }: any) {
                 return (
                   <Row key={g.id} className="!px-0 group" onClick={() => openItem('goal', g.id)}>
                     <Ring value={st.progress} size={34} stroke={3.5} color={st.onTrack ? 'var(--accent)' : 'var(--warning)'} />
-                    <RowMeta title={g.name} sub={<>{inr(g.current, { compact: true })} of {inr(g.target, { compact: true })}</>} />
+                    <RowMeta title={g.name} sub={<>{money(g.current, { compact: true })} of {money(g.target, { compact: true })}</>} />
                     <span className="num text-meta text-foreground-subtle transition-colors group-hover:text-foreground">{Math.round(st.progress * 100)}%</span>
                   </Row>
                 );
@@ -338,7 +338,7 @@ function RightSidebar({ state, world, openItem, openAdd, openPalette }: any) {
               return (
                 <Row key={l.id} className="!px-0" onClick={() => openItem('loan', l.id)}>
                   <Icon as={HandCoins} size="sm" />
-                  <RowMeta title={l.name} sub={`${inr(s.emi)}/mo`} />
+                  <RowMeta title={l.name} sub={`${money(s.emi)}/mo`} />
                   <Money v={s.balance} compact className="text-body font-medium" />
                 </Row>
               );

@@ -9,6 +9,7 @@ export const inWorld = (world: World) => (x: { world?: World }) => W(x) === worl
 
 /* ---------- Loans ---------- */
 export function emi(P: number, rate: number, n: number): number {
+  if (!Number.isFinite(P) || !Number.isFinite(rate) || !Number.isFinite(n) || n < 0) throw new Error("Invalid EMI inputs");
   const r = rate / 1200;
   if (!n) return 0;
   if (!r) return P / n;
@@ -18,8 +19,10 @@ export function emi(P: number, rate: number, n: number): number {
 
 export function loanStats(loan: Loan, now = today()) {
   const P = +loan.principal, n = +loan.tenureMonths, r = +loan.rate / 1200;
+  if (!Number.isFinite(P) || !Number.isFinite(n) || !Number.isFinite(r) || n <= 0) throw new Error("Invalid loan inputs");
   const e = emi(P, +loan.rate, n);
   const start = parseDate(loan.startDate);
+  if (isNaN(start.getTime())) throw new Error("Invalid loan start date");
   const paid = Math.max(0, Math.min(n, monthsBetween(start, now)));
   let bal = P, interestPaid = 0, totalInterest = 0;
   const schedule = [];
@@ -50,7 +53,8 @@ export function accountBalance(state: AppState, acc: Account) {
     if (t.type === 'transfer') {
       if (t.fromAccountId === acc.id) b -= t.amount;
       if (t.toAccountId === acc.id) b += t.amount;
-    } else if (t.accountId === acc.id && !(t.cardId && isCredit(state, t.cardId))) {
+    } else if (t.accountId === acc.id) {
+      if (t.type === 'expense' && t.cardId && isCredit(state, t.cardId)) continue;
       b += t.type === 'income' ? t.amount : -t.amount;
     }
   }
@@ -65,7 +69,8 @@ export const available = (state: AppState, world: World) => {
     if (t.type === 'transfer') {
       if (!t.toAccountId && (t.toWorld || W(t)) === world) untrackedCash += t.amount;
       if (!t.fromAccountId && (t.fromWorld || W(t)) === world) untrackedCash -= t.amount;
-    } else if (W(t) === world && !t.accountId && !(t.cardId && isCredit(state, t.cardId))) {
+    } else if (W(t) === world && !t.accountId) {
+      if (t.type === 'expense' && t.cardId && isCredit(state, t.cardId)) continue;
       untrackedCash += t.type === 'income' ? t.amount : -t.amount;
     }
   }
@@ -79,12 +84,20 @@ export function cardStats(state: AppState, card: Card, now = today()) {
   if (cycleStart > now) cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, sd + 1);
   const txns = state.transactions.filter((t) => t.cardId === card.id);
   const cycle = txns.filter((t) => parseDate(t.date) >= cycleStart);
-  const spent = cycle.reduce((s, t) => s + t.amount, 0);
+  
+  const spent = cycle.reduce((s, t) => t.type === 'expense' ? s + t.amount : s, 0);
+  const totalBalance = txns.reduce((s, t) => {
+    if (t.type === 'expense') return s + t.amount;
+    if (t.type === 'card_payment') return s - t.amount;
+    return s;
+  }, 0);
+  
   const statement = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, sd);
   const due = new Date(statement.getFullYear(), statement.getMonth() + (+(card.dueDay || 0) < sd ? 1 : 0), +(card.dueDay || 0) || sd + 18);
+  const lastStatementBalance = Math.max(0, totalBalance - spent);
   return {
-    spent, txns, limit: +(card.limit || 0) || 0, availableLimit: Math.max(0, (+(card.limit || 0) || 0) - spent),
-    utilization: card.limit ? spent / card.limit : 0, statementDate: ymd(statement), dueDate: ymd(due),
+    spent, txns, limit: +(card.limit || 0) || 0, availableLimit: Math.max(0, (+(card.limit || 0) || 0) - totalBalance),
+    utilization: card.limit ? totalBalance / card.limit : 0, statementDate: ymd(statement), dueDate: ymd(due), totalBalance, lastStatementBalance
   };
 }
 
@@ -155,7 +168,7 @@ export function upcoming(state: AppState, world: World, days = 30, now = today()
   }
   if (world === 'personal') for (const c of state.cards.filter((c) => c.kind === 'credit')) {
     const s = cardStats(state, c, now);
-    if (s.spent > 0 && parseDate(s.dueDate) <= end) out.push({ id: c.id, name: `${c.name} bill`, amount: s.spent, date: s.dueDate, type: 'expense', kind: 'card', category: 'Card' });
+    if (s.lastStatementBalance > 0 && parseDate(s.dueDate) <= end) out.push({ id: c.id, name: `${c.name} bill`, amount: s.lastStatementBalance, date: s.dueDate, type: 'expense', kind: 'card', category: 'Card' });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }

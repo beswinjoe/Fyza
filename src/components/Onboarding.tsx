@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { Input, cn } from './ui';
 import { CurrencyPicker } from './CurrencyPicker';
+import { Logo } from './Logo';
 import welcomeVid from '../assets/welcome.mp4';
 
 const PROFILES = [
@@ -65,7 +66,7 @@ export default function Onboarding() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/5 to-black/10" />
         <div className="absolute left-6 top-6 flex items-center gap-2 text-white/90 lg:left-8 lg:top-8">
-          <div className="size-1.5 rounded-full bg-white/80" />
+          <Logo className="size-3" />
           <span className="text-[11px] font-medium uppercase tracking-[0.22em]">Fyza</span>
         </div>
         <div key={step} className="absolute inset-x-6 bottom-6 max-w-[420px] animate-[fadeUp_.7s_ease-out_both] text-white lg:inset-x-10 lg:bottom-10">
@@ -77,9 +78,9 @@ export default function Onboarding() {
       {/* Content */}
       <section className="relative flex flex-1 flex-col px-5 pb-6 pt-8 sm:px-10 lg:px-16 lg:py-10 xl:px-24">
         <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="grid size-8 place-items-center rounded-[10px] bg-foreground font-display text-[15px] font-bold text-background">F</div>
-            <span className="font-display text-[18px] font-semibold tracking-[-0.03em]">Fyza</span>
+          <div className="flex items-center gap-3">
+            <Logo className="size-10" />
+            <span className="font-display text-[19px] font-semibold tracking-[-0.03em]">Fyza</span>
           </div>
           {step > 0 && (
             <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>

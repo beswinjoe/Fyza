@@ -1,6 +1,6 @@
 import { Landmark, CreditCard, HandCoins, Repeat, Plus } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { inr } from '../engine/format';
+import { money } from '../engine/format';
 import { accountBalance, cardStats, loanStats, inWorld } from '../engine/finance';
 import { Card, EmptyState, Row, RowMeta, Icon, Money, ACC_ICON, Button } from '../components/ui';
 
@@ -64,7 +64,7 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
               return (
                 <Row key={l.id} onClick={() => openItem('loan', l.id)} className="cursor-pointer hover:bg-surface-muted/50 rounded-lg">
                   <Icon as={HandCoins} />
-                  <RowMeta title={l.name} sub={`${inr(s.emi)}/mo`} />
+                  <RowMeta title={l.name} sub={`${money(s.emi)}/mo`} />
                   <Money v={s.balance} compact className="text-[15px] font-medium" />
                 </Row>
               );
