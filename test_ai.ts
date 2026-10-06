@@ -2,19 +2,12 @@ import { strict as assert } from 'assert';
 import { AppState } from './src/types/app';
 import * as tools from './src/engine/aiTools';
 
+import { EMPTY } from './src/engine/seed';
+
 function getEmptyState(): AppState {
-  return {
-    world: 'personal',
-    accounts: [{ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' }],
-    cards: [],
-    transactions: [],
-    recurring: [],
-    goals: [],
-    trips: [],
-    loans: [],
-    scenarios: [],
-    aiHistory: [],
-  };
+  const s = structuredClone(EMPTY);
+  s.accounts = [{ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' }];
+  return s;
 }
 
 const s = getEmptyState();
@@ -23,7 +16,7 @@ const s = getEmptyState();
 const a = tools.addTransaction(s, 500, 'Food', 'expense', '2026-10-15', 'Dinner');
 assert.equal(a.actions?.[0].ops[0].type, 'add');
 assert.equal(a.actions?.[0].ops[0].col, 'transactions');
-assert.equal((a.actions?.[0].ops[0].item as any).amount, 500);
+assert.equal(((a.actions?.[0].ops[0] as any).item as any).amount, 500);
 assert.equal(a.autoApply, true);
 
 // F. "Add 500" -> ambiguity
@@ -51,7 +44,7 @@ assert.equal(d2.actions?.[0].ops[0].type, 'remove');
 // O. repeated tool call / duplicate protection
 const dupState = getEmptyState();
 const r1 = tools.addTransaction(dupState, 500, 'Food', 'expense', '2026-10-15', 'Dinner');
-dupState.transactions.push(r1.actions![0].ops[0].item as any);
+dupState.transactions.push((r1.actions![0].ops[0] as any).item as any);
 // Call exactly the same again
 const r2 = tools.addTransaction(dupState, 500, 'Food', 'expense', '2026-10-15', 'Dinner');
 assert.equal(r2.autoApply, false); // autoApply is blocked on duplicate

@@ -41,7 +41,7 @@ console.log('Running finance engine tests...');
 
 // 1. Income / expense
 const s1 = getEmptyState();
-s1.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' });
+s1.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
 s1.transactions.push({ id: 't1', type: 'income', amount: 500, date: '2026-10-01', accountId: 'a1', world: 'personal' });
 s1.transactions.push({ id: 't2', type: 'expense', amount: 200, date: '2026-10-10', accountId: 'a1', world: 'personal' });
 s1.transactions.push({ id: 't3', type: 'expense', amount: 50.75, date: '2026-10-11', world: 'personal' }); // Cash expense
@@ -56,8 +56,8 @@ assertClose(sum1.net, 249.25);
 
 // 2. Transfers without double counting
 const s2 = getEmptyState();
-s2.accounts.push({ id: 'a1', name: 'Bank 1', opening: 1000, type: 'bank', world: 'personal' });
-s2.accounts.push({ id: 'a2', name: 'Bank 2', opening: 500, type: 'bank', world: 'personal' });
+s2.accounts.push({ id: 'a1', name: 'Bank 1', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
+s2.accounts.push({ id: 'a2', name: 'Bank 2', opening: 500, type: 'bank', currency: 'USD', world: 'personal' });
 s2.transactions.push({ id: 't1', type: 'transfer', amount: 300, date: '2026-10-01', fromAccountId: 'a1', toAccountId: 'a2', fromWorld: 'personal', toWorld: 'personal', world: 'personal' });
 assertClose(accountBalance(s2, s2.accounts[0]), 700);
 assertClose(accountBalance(s2, s2.accounts[1]), 800);
@@ -72,8 +72,8 @@ assertClose(sum2.transferOut, 0);
 
 // 3. Personal/business separation
 const s3 = getEmptyState();
-s3.accounts.push({ id: 'a1', name: 'Personal', opening: 1000, type: 'bank', world: 'personal' });
-s3.accounts.push({ id: 'a2', name: 'Business', opening: 5000, type: 'bank', world: 'business' });
+s3.accounts.push({ id: 'a1', name: 'Personal', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
+s3.accounts.push({ id: 'a2', name: 'Business', opening: 5000, type: 'bank', currency: 'USD', world: 'business' });
 s3.transactions.push({ id: 't1', type: 'income', amount: 100, date: '2026-10-01', accountId: 'a1', world: 'personal' });
 s3.transactions.push({ id: 't2', type: 'income', amount: 900, date: '2026-10-01', accountId: 'a2', world: 'business' });
 assertClose(available(s3, 'personal'), 1100);
@@ -81,9 +81,9 @@ assertClose(available(s3, 'business'), 5900);
 
 // 4. Recurring expenses
 const s4 = getEmptyState();
-s4.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' });
-s4.recurring.push({ id: 'r1', name: 'Netflix', type: 'expense', amount: 15, day: 5, world: 'personal' });
-s4.recurring.push({ id: 'r2', name: 'Salary', type: 'income', amount: 2000, day: 1, world: 'personal' });
+s4.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
+s4.recurring.push({ id: 'r1', name: 'Netflix', type: 'expense', category: 'Entertainment', amount: 15, day: 5, world: 'personal' });
+s4.recurring.push({ id: 'r2', name: 'Salary', type: 'income', category: 'Salary', amount: 2000, day: 1, world: 'personal' });
 // recurring do not affect available immediately, only via forecast or when added as a transaction
 assertClose(available(s4, 'personal'), 1000);
 
@@ -102,8 +102,8 @@ assertClose(f4_next[1].income, 2000);
 
 // 6. Goals
 const s6 = getEmptyState();
-s6.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' });
-s6.goals.push({ id: 'g1', name: 'Car', kind: 'savings', target: 5000, current: 1000, monthly: 500, world: 'personal' });
+s6.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
+s6.goals.push({ id: 'g1', name: 'Car', kind: 'savings', target: 5000, current: 1000, monthly: 500, targetDate: '2026-12-01', world: 'personal' });
 const g6Stats = goalStats(s6.goals[0], NOW);
 assertClose(g6Stats.left, 4000);
 assertClose(g6Stats.progress, 0.2);
@@ -132,7 +132,7 @@ assertClose(ls1.progress, 0.5);
 
 // 9. Credit cards
 const s9 = getEmptyState();
-s9.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' });
+s9.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
 s9.cards.push({ id: 'c1', name: 'Visa', kind: 'credit', limit: 5000, statementDay: 5, dueDay: 20, world: 'personal' } as any);
 s9.transactions.push({ id: 't1', type: 'expense', amount: 150, date: '2026-10-10', cardId: 'c1', world: 'personal' }); // this cycle
 s9.transactions.push({ id: 't2', type: 'expense', amount: 200, date: '2026-09-10', cardId: 'c1', world: 'personal' }); // last cycle
@@ -158,7 +158,7 @@ assert.equal(emi(100, 0, 0), 0);
 
 // 14. Completed goals
 const s14 = getEmptyState();
-s14.goals.push({ id: 'g2', name: 'House', kind: 'savings', target: 50000, current: 50000, monthly: 500, world: 'personal' });
+s14.goals.push({ id: 'g2', name: 'House', kind: 'savings', target: 50000, current: 50000, monthly: 500, targetDate: '2027-01-01', world: 'personal' });
 const g14Stats = goalStats(s14.goals[0], NOW);
 assertClose(g14Stats.progress, 1);
 assertClose(g14Stats.left, 0);
@@ -175,12 +175,12 @@ assertClose(octSummary.expense, 200);
 
 // 16. Combined realistic scenario
 const s16 = getEmptyState();
-s16.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' });
+s16.accounts.push({ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' });
 s16.cards.push({ id: 'c1', name: 'Visa', kind: 'credit', limit: 2000, statementDay: 1, dueDay: 15, world: 'personal' } as any);
-s16.recurring.push({ id: 'r1', name: 'Salary', type: 'income', amount: 5000, day: 1, world: 'personal' });
-s16.recurring.push({ id: 'r2', name: 'Rent', type: 'expense', amount: 1500, day: 5, world: 'personal' });
+s16.recurring.push({ id: 'r1', name: 'Salary', type: 'income', category: 'Salary', amount: 5000, day: 1, world: 'personal' });
+s16.recurring.push({ id: 'r2', name: 'Rent', type: 'expense', category: 'Housing', amount: 1500, day: 5, world: 'personal' });
 s16.transactions.push({ id: 't1', type: 'expense', amount: 300, date: '2026-10-10', cardId: 'c1', world: 'personal' });
-s16.goals.push({ id: 'g1', name: 'Vacation', kind: 'savings', target: 2000, current: 0, monthly: 400, world: 'personal' });
+s16.goals.push({ id: 'g1', name: 'Vacation', kind: 'savings', target: 2000, current: 0, monthly: 400, targetDate: '2026-12-01', world: 'personal' });
 
 const f16 = forecast(s16, 'personal', 3, {}, NOW);
 // Month 1 (Oct 15 - Oct 31): Salary (day 1) and Rent (day 5) already passed, so remaining forecast for Oct:

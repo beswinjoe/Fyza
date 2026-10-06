@@ -1,5 +1,6 @@
 import { strict as assert } from 'assert';
-import { AppState, Action } from './src/types/app';
+import { AppState } from './src/types/app';
+import { Action } from './src/types/store';
 import { EMPTY } from './src/engine/seed';
 import { reducer } from './src/engine/store';
 import { hydrate, saveState, loadState, CURRENT_VERSION } from './src/engine/persistence';
@@ -24,7 +25,7 @@ function dispatch(action: Action) {
 function reset() {
   state = hydrate(EMPTY);
   state.world = 'personal';
-  state.accounts = [{ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', world: 'personal' }];
+  state.accounts = [{ id: 'a1', name: 'Bank', opening: 1000, type: 'bank', currency: 'USD', world: 'personal' }];
 }
 
 reset();
