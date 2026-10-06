@@ -27,7 +27,7 @@
   --positive: #12865a;
   --negative: #cc4040;
   --warning: #a8701a;
-  --chart-1: #4d7a0a;
+  --chart-1: #12865a;
   --chart-2: #a3a3ab;
   --chart-grid: rgb(15 15 25 / 0.06);
   --overlay: rgb(20 20 25 / 0.28);
@@ -55,7 +55,7 @@
     --positive: #5ad49b;
     --negative: #f07f7f;
     --warning: #e8bf72;
-    --chart-1: #c6ec7c;
+    --chart-1: #5ad49b;
     --chart-2: #8f8f98;
     --chart-grid: rgb(255 255 255 / 0.05);
     --overlay: rgb(5 8 18 / 0.45);
