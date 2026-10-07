@@ -98,6 +98,8 @@ export function AICard({ r, compact }: { r: AIResult; compact?: boolean }) {
   );
 }
 
+import { hasCapability } from '../engine/capabilities';
+
 type Cmd = { id: string; label: string; group: 'Ask Fyza' | 'Suggestions' | 'Add' | 'Navigate' | 'Preferences'; icon: React.ElementType; run: () => void; hint?: string };
 
 export function Palette({ onClose, onNavigate, onAdd, hasBiz }: { onClose: () => void; onNavigate: (p: string) => void; onAdd: (t: string) => void; hasBiz?: boolean }) {
@@ -127,7 +129,7 @@ export function Palette({ onClose, onNavigate, onAdd, hasBiz }: { onClose: () =>
       ...sugg.map((s, i) => ({ id: `s${i}`, label: s, group: 'Suggestions' as const, icon: MessageSquare, run: () => run(s) })),
       { id: 'a-exp', label: 'Add expense', group: 'Add', icon: ArrowUpRight, run: () => onAdd('expense'), hint: '⌘E' },
       { id: 'a-inc', label: 'Add income', group: 'Add', icon: ArrowDownLeft, run: () => onAdd('income'), hint: '⌘I' },
-      { id: 'a-acc', label: 'Add account', group: 'Add', icon: Landmark, run: () => onAdd('account') },
+      ...(hasCapability(state, 'accounts') ? [{ id: 'a-acc', label: 'Add account', group: 'Add' as const, icon: Landmark, run: () => onAdd('account') }] : []),
       { id: 'a-goal', label: 'Create goal', group: 'Add', icon: Target, run: () => onAdd('goal') },
       { id: 'a-trip', label: 'Plan a trip', group: 'Add', icon: Plane, run: () => onAdd('trip') },
       { id: 'n-home', label: 'Go to Home', group: 'Navigate', icon: Home, run: () => onNavigate('home') },

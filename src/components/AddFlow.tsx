@@ -11,22 +11,33 @@ import { useAI, AICard } from './AI';
 import { AIResult } from '../types/ai';
 import { AppState } from '../types/app';
 
-export const TYPES = [
-  { k: 'expense', label: 'Expense', icon: ArrowUpRight, d: 'Something you paid for' },
-  { k: 'income', label: 'Income', icon: ArrowDownLeft, d: 'Salary, pocket money, sales' },
-  { k: 'recurring', label: 'Recurring', icon: Repeat, d: 'Rent, bills, subscriptions' },
-  { k: 'account', label: 'Account', icon: Landmark, d: 'Bank, cash, wallet' },
-  { k: 'card', label: 'Card', icon: CreditCard, d: 'Credit or debit card' },
-  { k: 'loan', label: 'Loan', icon: HandCoins, d: 'EMIs calculated for you' },
-  { k: 'goal', label: 'Goal', icon: Target, d: 'Save towards something' },
-  { k: 'trip', label: 'Trip', icon: Plane, d: 'Plan travel spending' },
-  { k: 'transfer', label: 'Transfer', icon: ArrowLeftRight, d: 'Between accounts or worlds' },
-  { k: 'investment', label: 'Investment', icon: TrendingUp, d: 'Coming soon', soon: true },
-  { k: 'property', label: 'Property', icon: Home, d: 'Coming soon', soon: true },
-  { k: 'vehicle', label: 'Vehicle', icon: Car, d: 'Coming soon', soon: true },
-  { k: 'business', label: 'Business', icon: Building2, d: 'Coming soon', soon: true },
-  { k: 'custom', label: 'Custom', icon: Shapes, d: 'Coming soon', soon: true },
-];
+import { hasCapability } from '../engine/capabilities';
+
+export const getTypes = (state: AppState) => {
+  const all = [
+    { k: 'expense', label: 'Expense', icon: ArrowUpRight, d: 'Something you paid for' },
+    { k: 'income', label: 'Income', icon: ArrowDownLeft, d: 'Salary, pocket money, sales' },
+    { k: 'recurring', label: 'Recurring', icon: Repeat, d: 'Rent, bills, subscriptions' },
+    { k: 'account', label: 'Account', icon: Landmark, d: 'Bank, cash, wallet' },
+    { k: 'card', label: 'Card', icon: CreditCard, d: 'Credit or debit card' },
+    { k: 'loan', label: 'Loan', icon: HandCoins, d: 'EMIs calculated for you' },
+    { k: 'goal', label: 'Goal', icon: Target, d: 'Save towards something' },
+    { k: 'trip', label: 'Trip', icon: Plane, d: 'Plan travel spending' },
+    { k: 'transfer', label: 'Transfer', icon: ArrowLeftRight, d: 'Between accounts or worlds' },
+    { k: 'investment', label: 'Investment', icon: TrendingUp, d: 'Coming soon', soon: true },
+    { k: 'property', label: 'Property', icon: Home, d: 'Coming soon', soon: true },
+    { k: 'vehicle', label: 'Vehicle', icon: Car, d: 'Coming soon', soon: true },
+    { k: 'business', label: 'Business', icon: Building2, d: 'Coming soon', soon: true },
+    { k: 'custom', label: 'Custom', icon: Shapes, d: 'Coming soon', soon: true },
+  ];
+  return all.filter(t => {
+    if (t.k === 'account') return hasCapability(state, 'accounts');
+    if (t.k === 'card') return hasCapability(state, 'cards');
+    if (t.k === 'loan') return hasCapability(state, 'loans');
+    if (t.k === 'business') return hasCapability(state, 'business');
+    return true;
+  });
+};
 
 const n = (x: string | number) => {
   if (typeof x === 'string') return +x.replace(/[^0-9.-]+/g, '') || 0;
@@ -57,7 +68,8 @@ function toOps(type: string, v: Record<string, any>, state: AppState) {
 export function AddFlow({ initial, onClose, onDone }: { initial: string | null; onClose: () => void; onDone?: (msg: string) => void }) {
   const { state, dispatch } = useStore();
   const [type, setType] = useState<string | null>(initial || null);
-  const meta = TYPES.find((t) => t.k === type);
+  const types = getTypes(state);
+  const meta = types.find((t) => t.k === type);
   const ask = useAI();
   const [nl, setNl] = useState('');
   const [busy, setBusy] = useState(false);
@@ -151,7 +163,7 @@ export function AddFlow({ initial, onClose, onDone }: { initial: string | null; 
               <div className="h-px flex-1 bg-border" /> Or add manually <div className="h-px flex-1 bg-border" />
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 stagger">
-              {TYPES.map((t) => (
+              {types.map((t) => (
                 <button key={t.k} className={cn("flex flex-col items-start gap-2 rounded-xl border border-border bg-surface p-3 text-left transition-colors", t.soon ? "opacity-50 cursor-not-allowed" : "hover:border-border-strong hover:bg-surface-muted")} disabled={t.soon} onClick={() => pick(t.k)}>
                   <div className="flex items-center gap-2">
                     <Icon as={t.icon} size="sm" />

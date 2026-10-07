@@ -14,6 +14,7 @@ import { Toast, Button, Kbd, AIMark, cn } from './components/ui';
 import Atmosphere from './components/Atmosphere';
 import Settings from './components/Settings';
 import { World } from './types/finance';
+import { hasCapability } from './engine/capabilities';
 
 export type Page = 'home' | 'activity' | 'plans' | 'trips' | 'accounts' | 'cards' | 'loans' | 'subscriptions' | 'business';
 
@@ -68,7 +69,7 @@ export default function App() {
 
   if (!state.onboarded) return <Onboarding />;
 
-  const hasBiz = state.profiles.includes('business') || state.profiles.includes('freelancer');
+  const hasBiz = hasCapability(state, 'business');
   
   const NAV_GROUPS = [
     {
@@ -83,11 +84,11 @@ export default function App() {
     {
       label: 'Manage',
       items: [
-        { id: 'accounts' as Page, label: 'Accounts', icon: Landmark },
-        ...(state.world === 'personal' ? [{ id: 'cards' as Page, label: 'Cards', icon: CreditCard }] : []),
-        { id: 'loans' as Page, label: 'Loans', icon: HandCoins },
+        ...(hasCapability(state, 'accounts') ? [{ id: 'accounts' as Page, label: 'Accounts', icon: Landmark }] : []),
+        ...(state.world === 'personal' && hasCapability(state, 'cards') ? [{ id: 'cards' as Page, label: 'Cards', icon: CreditCard }] : []),
+        ...(hasCapability(state, 'loans') ? [{ id: 'loans' as Page, label: 'Loans', icon: HandCoins }] : []),
         { id: 'subscriptions' as Page, label: 'Subscriptions', icon: Repeat },
-      ]
+      ].filter(Boolean)
     },
     ...(hasBiz ? [{
       label: 'Business',

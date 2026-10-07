@@ -19,4 +19,5 @@ export interface AppState {
   scenarios: Scenario[];
   aiHistory: AIResult[];
   categories: string[];
+  features?: Record<string, boolean>;
 }
