@@ -208,10 +208,10 @@
 
 /* ---------- Atmosphere (single navy theme for everyone) ---------- */
 .onb-atmos {
-  --atm-base: #f6f4ef;
-  --atm-lift: rgba(214, 222, 234, 0.55);
-  --atm-low: rgba(196, 206, 222, 0.35);
-  --atm-vignette: rgba(120, 128, 145, 0.10);
+  --atm-base: #0b1020;
+  --atm-lift: rgba(38, 48, 78, 0.35);
+  --atm-low: rgba(28, 36, 62, 0.45);
+  --atm-vignette: rgba(3, 5, 12, 0.55);
   position: relative;
   isolation: isolate;
   background-color: var(--atm-base);
@@ -219,6 +219,10 @@
     radial-gradient(120% 80% at 75% 0%, var(--atm-lift) 0%, transparent 60%),
     radial-gradient(90% 70% at 70% 110%, var(--atm-low) 0%, transparent 65%),
     linear-gradient(180deg, transparent 0%, var(--atm-low) 100%);
+  /* Smooth atmosphere transitions — 120s ensures imperceptible shifts */
+  transition-property: background-color;
+  transition-duration: 120s;
+  transition-timing-function: linear;
 }
 .onb-atmos::before {
   content: "";
@@ -239,13 +243,14 @@
 }
 @media all {
   .onb-atmos {
-    --atm-base: #0b1020;
-    --atm-lift: rgba(58, 72, 108, 0.42);
-    --atm-low: rgba(42, 54, 88, 0.55);
-    --atm-vignette: rgba(3, 5, 12, 0.55);
     color-scheme: dark;
   }
   .onb-atmos::after { opacity: 0.06; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .onb-atmos {
+    transition-duration: 0s !important;
+  }
 }
 @media (max-width: 1023px) {
   .onb-atmos {

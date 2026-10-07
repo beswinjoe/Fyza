@@ -11,6 +11,7 @@ import { Palette } from './components/AI';
 import { AddFlow } from './components/AddFlow';
 import { ItemView } from './components/ItemView';
 import { Toast, Button, Kbd, AIMark, cn } from './components/ui';
+import Atmosphere from './components/Atmosphere';
 import Settings from './components/Settings';
 import { World } from './types/finance';
 
@@ -107,6 +108,7 @@ export default function App() {
 
   return (
     <div className="onb-atmos onb-atmos-app flex min-h-full">
+      <Atmosphere />
       {/* ---------- Sidebar (desktop) ---------- */}
       {sb && (
         <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-transparent px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
