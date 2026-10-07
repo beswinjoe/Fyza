@@ -25,9 +25,9 @@ const STOPS: { hour: number; colors: AtmColors }[] = [
     // 0:00 — NIGHT (deep navy)
     hour: 0,
     colors: {
-      top: [6, 9, 18],
-      mid: [10, 14, 28],
-      bottom: [14, 20, 38],
+      top: [2, 4, 10],
+      mid: [5, 8, 18],
+      bottom: [3, 5, 14],
     },
   },
   {
@@ -97,9 +97,9 @@ const STOPS: { hour: number; colors: AtmColors }[] = [
     // 22:00 — NIGHT (return to deep navy)
     hour: 22,
     colors: {
-      top: [6, 9, 18],
-      mid: [10, 14, 28],
-      bottom: [14, 20, 38],
+      top: [2, 4, 10],
+      mid: [5, 8, 18],
+      bottom: [3, 5, 14],
     },
   },
 ];
