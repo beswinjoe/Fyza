@@ -206,25 +206,20 @@
 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { [class*="welcomeZoom"], [class*="fadeUp"] { animation: none !important; } }
 
-@property --atm-base { syntax: "<color>"; inherits: false; initial-value: transparent; }
-@property --atm-lift { syntax: "<color>"; inherits: false; initial-value: transparent; }
-@property --atm-low { syntax: "<color>"; inherits: false; initial-value: transparent; }
-@property --atm-vignette { syntax: "<color>"; inherits: false; initial-value: transparent; }
+@property --atm-top { syntax: "<color>"; inherits: false; initial-value: transparent; }
+@property --atm-mid { syntax: "<color>"; inherits: false; initial-value: transparent; }
+@property --atm-bottom { syntax: "<color>"; inherits: false; initial-value: transparent; }
 
 .onb-atmos {
-  --atm-base: #0b1020;
-  --atm-lift: rgba(38, 48, 78, 0.35);
-  --atm-low: rgba(28, 36, 62, 0.45);
-  --atm-vignette: rgba(3, 5, 12, 0.55);
+  --atm-top: #0b1020;
+  --atm-mid: #0f162c;
+  --atm-bottom: #141c38;
   position: relative;
   isolation: isolate;
-  background-color: var(--atm-base);
-  background-image:
-    radial-gradient(120% 80% at 75% 0%, var(--atm-lift) 0%, transparent 60%),
-    radial-gradient(90% 70% at 70% 110%, var(--atm-low) 0%, transparent 65%),
-    linear-gradient(180deg, transparent 0%, var(--atm-low) 100%);
+  background-color: var(--atm-top);
+  background-image: linear-gradient(180deg, var(--atm-top) 0%, var(--atm-mid) 45%, var(--atm-bottom) 100%);
   /* Smooth atmosphere transitions — 120s ensures imperceptible shifts */
-  transition-property: --atm-base, --atm-lift, --atm-low, --atm-vignette, background-color;
+  transition-property: --atm-top, --atm-mid, --atm-bottom;
   transition-duration: 120s;
   transition-timing-function: linear;
 }
@@ -234,7 +229,6 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(140% 110% at 65% 45%, transparent 55%, var(--atm-vignette) 100%);
 }
 .onb-atmos::after {
   content: "";
@@ -256,14 +250,7 @@
     transition-duration: 0s !important;
   }
 }
-@media (max-width: 1023px) {
-  .onb-atmos {
-    background-image:
-      radial-gradient(140% 60% at 50% 100%, var(--atm-low) 0%, transparent 70%),
-      linear-gradient(180deg, transparent 30%, var(--atm-low) 100%);
-  }
-  .onb-atmos::before { background: radial-gradient(120% 90% at 50% 60%, transparent 60%, var(--atm-vignette) 100%); }
-}
+
 /* App-shell variant: atmosphere stays fixed to the viewport while content scrolls */
 .onb-atmos-app { background-attachment: fixed; }
 .onb-atmos-app::before, .onb-atmos-app::after { position: fixed; }

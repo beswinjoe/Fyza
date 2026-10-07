@@ -14,10 +14,9 @@ import { useEffect, useRef } from 'react';
 // We interpolate between adjacent states based on the fractional hour.
 
 interface AtmColors {
-  base: [number, number, number];         // solid background
-  lift: [number, number, number, number]; // upper radial glow
-  low: [number, number, number, number];  // lower radial glow
-  vignette: [number, number, number, number]; // edge vignette
+  top: [number, number, number];
+  mid: [number, number, number];
+  bottom: [number, number, number];
 }
 
 // Time anchors (24h clock). Interpolation happens between adjacent anchors.
@@ -26,90 +25,81 @@ const STOPS: { hour: number; colors: AtmColors }[] = [
     // 0:00 — NIGHT (deep navy)
     hour: 0,
     colors: {
-      base: [11, 16, 32],
-      lift: [38, 48, 78, 0.35],
-      low: [28, 36, 62, 0.45],
-      vignette: [3, 5, 12, 0.55],
+      top: [6, 9, 18],
+      mid: [10, 14, 28],
+      bottom: [14, 20, 38],
     },
   },
   {
     // 5:30 — EARLY MORNING (deep muted blue, slightly brighter)
     hour: 5.5,
     colors: {
-      base: [13, 20, 40],
-      lift: [48, 62, 100, 0.44],
-      low: [38, 52, 88, 0.50],
-      vignette: [5, 8, 18, 0.48],
+      top: [8, 12, 24],
+      mid: [14, 22, 42],
+      bottom: [22, 34, 58],
     },
   },
   {
     // 7:00 — MORNING (cool blue, calm atmosphere)
     hour: 7,
     colors: {
-      base: [14, 22, 44],
-      lift: [55, 72, 112, 0.48],
-      low: [44, 60, 98, 0.52],
-      vignette: [6, 10, 22, 0.42],
+      top: [12, 18, 32],
+      mid: [18, 28, 52],
+      bottom: [28, 42, 68],
     },
   },
   {
     // 10:00 — DAYTIME (rich soft blue)
     hour: 10,
     colors: {
-      base: [14, 22, 44],
-      lift: [52, 68, 108, 0.46],
-      low: [42, 56, 92, 0.50],
-      vignette: [5, 8, 18, 0.44],
+      top: [14, 20, 36],
+      mid: [20, 30, 54],
+      bottom: [30, 44, 72],
     },
   },
   {
     // 16:00 — AFTERNOON (still blue, warming slightly)
     hour: 16,
     colors: {
-      base: [14, 21, 42],
-      lift: [56, 68, 100, 0.44],
-      low: [46, 56, 86, 0.48],
-      vignette: [6, 9, 18, 0.44],
+      top: [14, 18, 34],
+      mid: [22, 28, 50],
+      bottom: [32, 40, 66],
     },
   },
   {
     // 17:30 — GOLDEN HOUR (muted blue into warm beige/golden)
     hour: 17.5,
     colors: {
-      base: [16, 20, 36],
-      lift: [72, 66, 62, 0.38],
-      low: [62, 56, 50, 0.42],
-      vignette: [10, 8, 6, 0.48],
+      top: [16, 18, 32],
+      mid: [28, 28, 42],
+      bottom: [42, 38, 48],
     },
   },
   {
     // 19:00 — SUNSET (muted blue/purple, soft pink/rose lower area)
     hour: 19,
     colors: {
-      base: [14, 16, 32],
-      lift: [58, 48, 72, 0.40],
-      low: [62, 44, 58, 0.44],
-      vignette: [8, 5, 14, 0.52],
+      top: [14, 15, 30],
+      mid: [24, 20, 38],
+      bottom: [38, 26, 42],
     },
   },
   {
     // 20:30 — DUSK (transitioning back to night)
     hour: 20.5,
     colors: {
-      base: [12, 16, 34],
-      lift: [44, 52, 82, 0.38],
-      low: [34, 42, 70, 0.48],
-      vignette: [4, 6, 14, 0.52],
+      top: [10, 12, 24],
+      mid: [16, 20, 36],
+      bottom: [22, 28, 48],
     },
   },
   {
     // 22:00 — NIGHT (return to deep navy)
     hour: 22,
     colors: {
-      base: [11, 16, 32],
-      lift: [38, 48, 78, 0.35],
-      low: [28, 36, 62, 0.45],
-      vignette: [3, 5, 12, 0.55],
+      top: [6, 9, 18],
+      mid: [10, 14, 28],
+      bottom: [14, 20, 38],
     },
   },
 ];
@@ -126,10 +116,9 @@ function lerpRgba(a: readonly number[], b: readonly number[], t: number): number
 
 function lerpColors(a: AtmColors, b: AtmColors, t: number): AtmColors {
   return {
-    base: lerpRgba(a.base, b.base, t) as [number, number, number],
-    lift: lerpRgba(a.lift, b.lift, t) as [number, number, number, number],
-    low: lerpRgba(a.low, b.low, t) as [number, number, number, number],
-    vignette: lerpRgba(a.vignette, b.vignette, t) as [number, number, number, number],
+    top: lerpRgba(a.top, b.top, t) as [number, number, number],
+    mid: lerpRgba(a.mid, b.mid, t) as [number, number, number],
+    bottom: lerpRgba(a.bottom, b.bottom, t) as [number, number, number],
   };
 }
 
@@ -149,10 +138,6 @@ function getColorsForTime(fractionalHour: number): AtmColors {
 
 function rgb(c: readonly number[]): string {
   return `rgb(${Math.round(c[0])} ${Math.round(c[1])} ${Math.round(c[2])})`;
-}
-
-function rgba(c: readonly number[]): string {
-  return `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${c[3].toFixed(2)})`;
 }
 
 function getFractionalHour(): number {
@@ -178,10 +163,9 @@ export default function Atmosphere() {
       const h = getFractionalHour();
       const c = getColorsForTime(h);
 
-      el.style.setProperty('--atm-base', rgb(c.base));
-      el.style.setProperty('--atm-lift', rgba(c.lift));
-      el.style.setProperty('--atm-low', rgba(c.low));
-      el.style.setProperty('--atm-vignette', rgba(c.vignette));
+      el.style.setProperty('--atm-top', rgb(c.top));
+      el.style.setProperty('--atm-mid', rgb(c.mid));
+      el.style.setProperty('--atm-bottom', rgb(c.bottom));
     }
 
     // Apply immediately
