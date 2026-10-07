@@ -165,7 +165,6 @@ function getFractionalHour(): number {
 const UPDATE_INTERVAL_MS = 60_000; // update every minute
 
 export default function Atmosphere() {
-  const rafRef = useRef<number>(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -206,7 +205,6 @@ export default function Atmosphere() {
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
       motionQuery.removeEventListener('change', onMotionChange);
     };
   }, []);
