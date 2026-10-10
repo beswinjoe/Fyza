@@ -196,9 +196,28 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
       if (idx >= 1 && idx <= +l.tenureMonths && (i > 0 || st.getDate() > now.getDate())) emis += emi(+l.principal, +l.rate, +l.tenureMonths);
     }
     for (const t of state.trips.filter(inWorld(world))) {
-      if (t.start.startsWith(key)) {
-        const left = Math.max(0, tripTotal(t) - tripSpent(state, t));
-        trips += left; tripList.push({ name: t.destination, amount: tripTotal(t) });
+      const tStart = parseDate(t.start);
+      const tEnd = parseDate(t.end);
+      if (tEnd < now) continue;
+      
+      const left = Math.max(0, tripTotal(t) - tripSpent(state, t));
+      if (left === 0) continue;
+      
+      const futureTripStart = tStart > now ? tStart : now;
+      const totalFutureDays = daysBetween(futureTripStart, tEnd) + 1;
+      if (totalFutureDays <= 0) continue;
+      
+      const monthStart = i === 0 ? now : new Date(m.getFullYear(), m.getMonth(), 1);
+      const monthEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0);
+      
+      const overlapStart = futureTripStart > monthStart ? futureTripStart : monthStart;
+      const overlapEnd = tEnd < monthEnd ? tEnd : monthEnd;
+      const overlapDays = daysBetween(overlapStart, overlapEnd) + 1;
+      
+      if (overlapDays > 0) {
+        const amount = left * (overlapDays / totalFutureDays);
+        trips += amount;
+        tripList.push({ name: t.destination, amount });
       }
     }
     for (const g of state.goals.filter(inWorld(world))) {
@@ -288,28 +307,61 @@ export function insights(state: AppState, world: World, now = today()) {
   const day = now.getDate();
   const cur = monthSummary(state, key, world, day);
   const prev = monthSummary(state, lastKey, world, day);
+  
+  // 1. Spending pace
   if (prev.expense > 0) {
     const d = (cur.expense - prev.expense) / prev.expense;
-    out.push({ tone: d <= 0 ? 'pos' : 'neg', text: `Spending is ${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'lower' : 'higher'} than this point last month.` });
+    if (Math.abs(d) > 0.05) {
+      out.push({ tone: d <= 0 ? 'pos' : 'neg', text: `Spending is ${Math.abs(Math.round(d * 100))}% ${d <= 0 ? 'lower' : 'higher'} than this point last month.` });
+    }
   }
+  
+  // 2. Category spikes
   const full = monthSummary(state, lastKey, world), full2 = monthSummary(state, mkey(addMonths(now, -2)), world);
   let top: { c: string; dlt: number; v: number } | null = null;
   for (const [c, v] of Object.entries(full.byCategory)) {
     const dlt = v - (full2.byCategory[c] || 0);
     if (!top || dlt > top.dlt) top = { c, dlt, v };
   }
-  if (top && top.dlt > 500) out.push({ tone: 'neutral', text: `${top.c} rose by ${money(top.dlt)} in ${monthLabel(lastKey, true).split(' ')[0]}.` });
+  if (top && top.dlt > (full.expense * 0.1) && top.dlt > 50) {
+    out.push({ tone: 'neutral', text: `${top.c} rose by ${money(top.dlt)} in ${monthLabel(lastKey, true).split(' ')[0]}.` });
+  }
+  
+  // 3. Forecast pressure
   const fc = forecast(state, world, 4, {}, now);
   const tripMonth = fc.find((r) => r.trips > 0 || r.tripList.length);
   if (tripMonth) out.push({ tone: 'neutral', text: `${tripMonth.tripList.map((t) => t.name).join(', ')} pushes ${monthLabel(tripMonth.key, true).split(' ')[0]} spending to ${money(tripMonth.expense)}.` });
+  
   const low = fc.find((r) => r.balance < 0);
   if (low) out.push({ tone: 'neg', text: `Balance may go negative in ${monthLabel(low.key, true)}.` });
+  
+  // 4. Credit utilization
+  if (world === 'personal') {
+    for (const c of state.cards.filter(c => c.kind === 'credit')) {
+      const s = cardStats(state, c, now);
+      if (s.utilization > 0.85) out.push({ tone: 'warn', text: `${c.name} is at ${Math.round(s.utilization * 100)}% of its limit.` });
+    }
+  }
+  
+  // 5. Over-budget trips
+  for (const t of state.trips.filter(inWorld(world))) {
+    const total = tripTotal(t), spent = tripSpent(state, t);
+    if (total > 0 && spent > total * 1.05) out.push({ tone: 'warn', text: `${t.destination} trip is ${money(spent - total)} over budget.` });
+  }
+  
+  // 6. Goal nearing completion
+  for (const g of state.goals.filter(inWorld(world))) {
+    const s = goalStats(g, now);
+    if (s.progress > 0.85 && s.progress < 1) out.push({ tone: 'pos', text: `You're ${Math.round(s.progress * 100)}% of the way to your ${g.name} goal!` });
+    else if (s.progress >= 1 && s.left === 0) out.push({ tone: 'pos', text: `You've reached your ${g.name} savings goal.` });
+  }
+  
   return out;
 }
 
 export function netWorth(state: AppState) {
   const assets = state.accounts.reduce((s, a) => s + accountBalance(state, a), 0) + (state.goals || []).reduce((s, g) => s + (+g.current || 0), 0);
-  const cardDebt = state.cards.filter((c) => c.kind === 'credit').reduce((s, c) => s + cardStats(state, c).spent, 0);
+  const cardDebt = state.cards.filter((c) => c.kind === 'credit').reduce((s, c) => s + Math.max(0, cardStats(state, c).totalBalance), 0);
   const loanDebt = state.loans.reduce((s, l) => s + loanStats(l).balance, 0);
   return { assets, liabilities: cardDebt + loanDebt, net: assets - cardDebt - loanDebt, cardDebt, loanDebt };
 }

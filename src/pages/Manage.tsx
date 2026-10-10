@@ -73,17 +73,31 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
         )}
 
         {tab === 'subscriptions' && (
-          <Card className="p-2 sm:p-4">
-            {subs.length === 0 ? (
-              <EmptyState size="md" icon={Repeat} title="No subscriptions" description="Add recurring expenses or subscriptions." primaryAction={{ label: 'Add subscription', onClick: () => openAdd('recurring') }} />
-            ) : subs.map((r) => (
-              <Row key={r.id} onClick={() => openItem('recurring', r.id)} className="cursor-pointer hover:bg-surface-muted/50 rounded-lg">
-                <Icon as={Repeat} />
-                <RowMeta title={r.name} sub={`Day ${r.day} · ${r.category}`} />
-                <Money v={r.amount} className="text-[15px] font-medium" />
-              </Row>
-            ))}
-          </Card>
+          <div className="flex flex-col gap-6">
+            {subs.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="p-4 sm:p-5">
+                  <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle mb-1">Monthly Cost</div>
+                  <div className="text-[28px] font-semibold text-foreground leading-tight">{money(subs.reduce((s, r) => s + r.amount, 0))}</div>
+                </Card>
+                <Card className="p-4 sm:p-5">
+                  <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle mb-1">Yearly Cost</div>
+                  <div className="text-[28px] font-semibold text-foreground leading-tight">{money(subs.reduce((s, r) => s + r.amount * 12, 0), { compact: true })}</div>
+                </Card>
+              </div>
+            )}
+            <Card className="p-2 sm:p-4">
+              {subs.length === 0 ? (
+                <EmptyState size="md" icon={Repeat} title="No subscriptions" description="Add recurring expenses or subscriptions." primaryAction={{ label: 'Add subscription', onClick: () => openAdd('recurring') }} />
+              ) : subs.map((r) => (
+                <Row key={r.id} onClick={() => openItem('recurring', r.id)} className="cursor-pointer hover:bg-surface-muted/50 rounded-lg">
+                  <Icon as={Repeat} />
+                  <RowMeta title={r.name} sub={`Day ${r.day} · ${r.category}`} />
+                  <Money v={r.amount} className="text-[15px] font-medium" />
+                </Row>
+              ))}
+            </Card>
+          </div>
         )}
       </div>
     </div>

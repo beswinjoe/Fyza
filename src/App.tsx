@@ -112,7 +112,7 @@ export default function App() {
       <Atmosphere />
       {/* ---------- Sidebar (desktop) ---------- */}
       {sb && (
-        <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-transparent px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
+        <aside className="sticky top-0 flex h-dvh w-[240px] shrink-0 flex-col border-r border-border bg-surface-muted/30 px-3 pb-4 pt-4 max-lg:hidden" aria-label="Primary">
           <div className="flex h-8 items-center justify-between px-2 mb-4">
             <Brand />
             <Button variant="ghost" size="sm" icon aria-label="Collapse sidebar" onClick={() => setSb(false)} className="-mr-1 text-foreground-subtle"><PanelLeftClose /></Button>
@@ -175,8 +175,8 @@ export default function App() {
           {!sb && <Button variant="ghost" size="sm" icon aria-label="Expand sidebar" onClick={() => setSb(true)} className="max-lg:hidden"><PanelLeft /></Button>}
           <div className="lg:hidden"><Brand compact /></div>
           <button onClick={() => setCmd(true)} aria-label="Ask or tell Fyza anything (Command K)"
-            className="group flex h-9 w-full max-w-[440px] items-center gap-2.5 rounded-lg border border-border bg-surface px-3 text-left text-[13px] text-foreground-subtle shadow-card transition-all duration-200 hover:border-border-strong hover:text-foreground-muted focus-visible:ring-4 focus-visible:ring-accent-soft">
-            <Search className="size-4 shrink-0 transition-colors group-hover:text-foreground-muted" strokeWidth={1.75} />
+            className="group flex h-9 w-full max-w-[440px] items-center gap-2.5 rounded-lg border border-border bg-surface-elevated px-3 text-left text-[13px] text-foreground-muted shadow-card transition-all duration-200 hover:border-border-strong hover:text-foreground focus-visible:ring-4 focus-visible:ring-accent-soft">
+            <Search className="size-4 shrink-0 transition-colors group-hover:text-foreground" strokeWidth={1.75} />
             <span className="flex-1 truncate">Ask or tell Fyza anything…</span>
             <Kbd className="max-md:hidden">⌘K</Kbd>
           </button>

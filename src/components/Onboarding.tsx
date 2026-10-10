@@ -4,6 +4,7 @@ import { useStore } from '../engine/store';
 import { Input, cn } from './ui';
 import { CurrencyPicker } from './CurrencyPicker';
 import { Logo } from './Logo';
+import Atmosphere from './Atmosphere';
 import welcomeVid from '../assets/welcome.mp4';
 
 const PROFILES = [
@@ -52,8 +53,10 @@ export default function Onboarding() {
   const cap = CAPTIONS[step];
 
   return (
-    <main className="onb-atmos flex min-h-dvh flex-col p-3 lg:grid lg:h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:p-4">
-      {/* Visual */}
+    <>
+      <Atmosphere />
+      <main className="onb-atmos flex min-h-dvh flex-col p-3 lg:grid lg:h-dvh lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:p-4">
+        {/* Visual */}
       <section aria-hidden className="relative h-[38vh] min-h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] lg:h-full">
         <video
           ref={(v) => { if (v) v.playbackRate = 0.7; }}
@@ -195,5 +198,6 @@ export default function Onboarding() {
         </footer>
       </section>
     </main>
+    </>
   );
 }

@@ -39,14 +39,14 @@
 @media all {
   :root {
     --background: #0b1020;
-    --surface: rgb(255 255 255 / 0.045);
-    --surface-muted: rgb(255 255 255 / 0.06);
-    --surface-elevated: rgb(20 28 50 / 0.72);
+    --surface: rgb(0 0 0 / 0.25);
+    --surface-muted: rgb(0 0 0 / 0.4);
+    --surface-elevated: rgb(15 20 40 / 0.85);
     --foreground: #eef1f7;
     --foreground-muted: #a9b1c4;
     --foreground-subtle: #78819a;
-    --border: rgb(255 255 255 / 0.09);
-    --border-strong: rgb(255 255 255 / 0.16);
+    --border: rgb(255 255 255 / 0.08);
+    --border-strong: rgb(255 255 255 / 0.15);
     --accent: #c6ec7c;
     --accent-soft: rgb(198 236 124 / 0.09);
     --accent-foreground: #11150a;
@@ -220,7 +220,7 @@
   background-image: linear-gradient(180deg, var(--atm-top) 0%, var(--atm-mid) 45%, var(--atm-bottom) 100%);
   /* Smooth atmosphere transitions — 120s ensures imperceptible shifts */
   transition-property: --atm-top, --atm-mid, --atm-bottom;
-  transition-duration: 120s;
+  transition-duration: 2s;
   transition-timing-function: linear;
 }
 .onb-atmos::before {
@@ -264,10 +264,10 @@
 }
 @media all {
   .onb-atmos-app {
-    --surface: rgb(255 255 255 / 0.045);
-    --surface-muted: rgb(255 255 255 / 0.06);
-    --border: rgb(255 255 255 / 0.09);
-    --border-strong: rgb(255 255 255 / 0.16);
+    --surface: rgb(0 0 0 / 0.35);
+    --surface-muted: rgb(0 0 0 / 0.5);
+    --border: rgb(255 255 255 / 0.08);
+    --border-strong: rgb(255 255 255 / 0.15);
   }
 }
 .onb-atmos-app .liquid {

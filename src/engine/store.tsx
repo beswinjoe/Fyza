@@ -32,7 +32,12 @@ export function reducer(state: AppState, a: Action): AppState {
       if (!VALID_COLLECTIONS.has(String(a.col))) return state;
       const arr = state[a.col as keyof AppState] as { id: string }[];
       if (!Array.isArray(arr)) return state;
-      return { ...state, [a.col]: arr.filter((x) => x.id !== a.id) };
+      let next = { ...state, [a.col]: arr.filter((x) => x.id !== a.id) };
+      // When removing a trip, unlink orphaned transactions (don't delete them — they're real spending)
+      if (a.col === 'trips') {
+        next = { ...next, transactions: next.transactions.map((t) => t.tripId === a.id ? { ...t, tripId: undefined } : t) };
+      }
+      return next;
     }
     case 'set': return { ...state, ...a.patch };
     case 'batch': return a.ops.reduce(reducer, state);

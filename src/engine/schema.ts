@@ -40,6 +40,14 @@ export function validateItem(col: string, item: Record<string, unknown>) {
     }
   });
 
+  if (col === 'trips' && typeof out.start === 'string' && typeof out.end === 'string') {
+    if (out.start > out.end) {
+      const temp = out.start;
+      out.start = out.end;
+      out.end = temp;
+    }
+  }
+
   // Enums / strict strings
   if (col === 'transactions') out.type = safeEnum(out.type, ['income', 'expense', 'transfer', 'card_payment', 'loan_payment']);
   if (col === 'recurring') out.type = safeEnum(out.type, ['income', 'expense']);

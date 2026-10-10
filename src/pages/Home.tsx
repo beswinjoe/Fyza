@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins } from 'lucide-react';
+import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, AlertTriangle, Landmark, ReceiptText, Target, Compass, CreditCard, HandCoins, ChevronDown, ArrowLeftRight, BarChart3 } from 'lucide-react';
 import { useStore } from '../engine/store';
-import { today, mkey, money, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate } from '../engine/format';
+import { today, mkey, money, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate, estTime } from '../engine/format';
 import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
 import { Money, Bar, Icon, AreaChart, BarsChart, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
 import { TxRow } from './Activity';
@@ -39,14 +39,11 @@ export function Insight({ items, onAsk }: { items: { tone: string; text: string 
 /* ---------- Heroes ---------- */
 function HeroShell({ eyebrow, badge, amount, children, stats }: { eyebrow: React.ReactNode; badge?: React.ReactNode; amount: number; children?: React.ReactNode; stats: React.ReactNode }) {
   return (
-    <Card className="relative overflow-hidden p-7 max-md:p-5">
-      <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-accent-soft blur-3xl" aria-hidden />
-      <div className="relative">
-        <div className="flex flex-wrap items-center justify-between gap-2"><Eyebrow>{eyebrow}</Eyebrow>{badge}</div>
-        <HeroAmount v={amount} className="mt-4" />
-        {children && <div className="mt-3 max-w-[56ch] text-[14px] leading-6 text-foreground-muted">{children}</div>}
-        <div className="mt-7 grid grid-cols-4 gap-x-6 gap-y-5 border-t border-border pt-5 max-md:grid-cols-2">{stats}</div>
-      </div>
+    <Card className="relative p-7 max-md:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2"><Eyebrow>{eyebrow}</Eyebrow>{badge}</div>
+      <HeroAmount v={amount} className="mt-4" />
+      {children && <div className="mt-3 max-w-[56ch] text-[14px] leading-6 text-foreground-muted">{children}</div>}
+      <div className="mt-7 grid grid-cols-4 gap-x-6 gap-y-5 border-t border-border pt-5 max-md:grid-cols-2">{stats}</div>
     </Card>
   );
 }
@@ -57,10 +54,22 @@ function StudentHero({ state }: { state: AppState }) {
   return (
     <HeroShell eyebrow="Left until next pocket money" amount={c.remaining} badge={<Badge>{c.daysLeft} days · {fmtDate(c.next)}</Badge>}
       stats={<>
-        <Stat label="Pocket money" value={money(c.amount)} />
-        <Stat label="Spent" value={money(c.spent)} />
-        <Stat label="Daily pace" value={money(c.rate)} />
-        <Stat label="Safe / day" value={money(c.safeDaily)} tone="positive" />
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted"><Landmark className="size-5" /></div>
+          <Stat label="Pocket money" value={money(c.amount)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-negative/10 text-negative"><TrendingDown className="size-5" /></div>
+          <Stat label="Spent" value={money(c.spent)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-surface-muted"><ReceiptText className="size-5" /></div>
+          <Stat label="Daily pace" value={money(c.rate)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-positive/10 text-positive"><TrendingUp className="size-5" /></div>
+          <Stat label="Safe / day" value={money(c.safeDaily)} />
+        </div>
       </>}>
       <Bar value={c.progress} tone={c.progress > 0.85 ? 'neg' : 'accent'} className="mb-3 mt-1" />
       At your current pace you'll likely have <b className={cn('num font-semibold', c.projected < 0 ? 'text-negative' : 'text-foreground')}>{money(c.projected)}</b> left. Try to keep it under <b className="num font-semibold text-foreground">{money(c.safeDaily)}/day</b>.
@@ -73,18 +82,32 @@ function PersonalHero({ state }: { state: AppState }) {
   const key = mkey(now);
   const s = monthSummary(state, key, 'personal');
   const avail = available(state, 'personal');
-  const prev = monthSummary(state, mkey(addMonths(now, -1)), 'personal', now.getDate());
-  const d = prev.expense ? (s.expense - prev.expense) / prev.expense : 0;
   const nw = netWorth(state);
   const flow = s.net + s.transferIn;
   return (
     <HeroShell eyebrow="Available trackable money" amount={Math.floor(avail)}
-      badge={prev.expense > 0 && <Badge tone={d <= 0 ? 'positive' : 'negative'}>{d <= 0 ? '↓' : '↑'} Spending {Math.abs(Math.round(d * 100))}% vs last month</Badge>}
+      badge={
+        <Button variant="ghost" size="sm" className="h-7 text-[12px] bg-surface-muted/50 border border-border">
+          This Month <ChevronDown className="size-3.5 opacity-60" />
+        </Button>
+      }
       stats={<>
-        <Stat label="Income" value={money(s.income + s.transferIn)} />
-        <Stat label="Spent" value={money(s.expense)} />
-        <Stat label="Cash flow" value={money(flow, { sign: true })} tone={flow >= 0 ? 'positive' : 'negative'} />
-        <Stat label="Net worth" value={money(nw.net, { compact: true })} />
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-positive/10 text-positive"><TrendingUp className="size-5" /></div>
+          <Stat label="Income" value={money(s.income + s.transferIn)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-negative/10 text-negative"><TrendingDown className="size-5" /></div>
+          <Stat label="Spent" value={money(s.expense)} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-blue-500/10 text-blue-400"><ArrowLeftRight className="size-5" /></div>
+          <Stat label="Cash Flow" value={money(flow, { sign: true })} tone={flow >= 0 ? 'positive' : 'negative'} />
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-purple-500/10 text-purple-400"><BarChart3 className="size-5" /></div>
+          <Stat label="Net Worth" value={money(nw.net, { compact: true })} />
+        </div>
       </>}>
       {s.income + s.expense > 0
         ? <>So far in {monthLabel(key, true).split(' ')[0]} you've brought in <b className="num font-semibold text-foreground">{money(s.income + s.transferIn)}</b> and spent <b className="num font-semibold text-foreground">{money(s.expense)}</b>.</>
@@ -101,20 +124,25 @@ export function FlowCard({ state, world }: { state: AppState; world: World }) {
   const fc = forecast(state, world, 6);
   return (
     <Card className="p-5">
-      <div className="flex items-end justify-between mb-6">
-        <div>
-          <div className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle mb-1">{mode === 'forecast' ? "Where you're heading" : 'Past 6 months'}</div>
-          {mode === 'forecast' ? (
-            <div className="text-[28px] font-semibold text-foreground leading-tight">
-              {money(fc[5].balance, { compact: true })} <span className="text-[15px] font-medium text-foreground-muted">by {fc[5].label}</span>
-            </div>
-          ) : (
-            <div className="text-[28px] font-semibold text-foreground leading-tight">History</div>
-          )}
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-2">
+          <div className="text-[16px] font-bold text-foreground">Where you're heading</div>
+          <div className="grid size-4 place-items-center rounded-full border border-foreground-muted text-[10px] font-bold text-foreground-muted">i</div>
         </div>
-        <div className="bg-surface-muted rounded-lg p-0.5 flex">
-          <button className={cn("px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors", mode === 'past' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('past')}>Past</button>
-          <button className={cn("px-3 py-1.5 text-[12px] font-medium rounded-md transition-colors", mode === 'forecast' ? 'bg-surface shadow-sm text-foreground' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('forecast')}>Future</button>
+        <div className="flex items-center gap-3">
+          <div className="bg-surface-muted rounded-lg p-0.5 flex">
+            <button className={cn("px-4 py-1.5 text-[12px] font-semibold rounded-md transition-colors", mode === 'past' ? 'bg-foreground shadow-sm text-background' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('past')}>Past</button>
+            <button className={cn("px-4 py-1.5 text-[12px] font-semibold rounded-md transition-colors", mode === 'forecast' ? 'bg-foreground shadow-sm text-background' : 'text-foreground-subtle hover:text-foreground')} onClick={() => setMode('forecast')}>Future</button>
+          </div>
+          <Button variant="ghost" size="sm" className="h-[30px] text-[12px] bg-surface-muted/50 border border-border">
+            6 Months <ChevronDown className="size-3.5 opacity-60 ml-1" />
+          </Button>
+        </div>
+      </div>
+      <div className="mb-4">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[28px] font-bold tracking-tight text-negative leading-none">{money(fc[5].balance, { compact: true, sign: true })}</span>
+          <span className="text-[13px] font-medium text-foreground-muted">by {fc[5].label}</span>
         </div>
       </div>
       
@@ -165,6 +193,28 @@ export function UpcomingCard({ state, world }: { state: AppState; world: World }
           <span className={cn('num text-body font-medium', u.type === 'income' && 'text-positive')}>{u.type === 'income' ? '+' : ''}{money(u.amount)}</span>
         </Row>
       ))}
+    </Card>
+  );
+}
+
+export function MonthlyRecapCard({ state, world }: { state: AppState; world: World }) {
+  const now = today();
+  const prevKey = mkey(addMonths(now, -1));
+  const prev = monthSummary(state, prevKey, world);
+  
+  if (prev.income === 0 && prev.expense === 0) return null;
+  
+  return (
+    <Card className="p-5">
+      <SectionHeader title={`${monthLabel(prevKey, true).split(' ')[0]} Recap`} sub="Last month's summary" />
+      <div className="grid grid-cols-2 gap-4 border-b border-border pb-4 mb-4">
+        <Stat label="Income" value={money(prev.income)} tone="positive" />
+        <Stat label="Spending" value={money(prev.expense)} tone="neutral" />
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="text-[13px] font-medium text-foreground-subtle">Amount saved</div>
+        <div className={cn("text-[17px] font-semibold num", prev.net >= 0 ? "text-positive" : "text-negative")}>{money(prev.net, { sign: true })}</div>
+      </div>
     </Card>
   );
 }
@@ -233,7 +283,7 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
 }
 
 /* ---------- Adaptive Sidebar ---------- */
-function RightSidebar({ state, world, openItem, openAdd, openPalette }: { state: AppState, world: World, openItem: OpenItem, openAdd: (t?: string) => void, openPalette: () => void }) {
+function RightSidebar({ state, world, openItem, openAdd, openPalette, go }: { state: AppState, world: World, openItem: OpenItem, openAdd: (t?: string) => void, openPalette: () => void, go: (p: string) => void }) {
   const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
   const accs = state.accounts.filter(inWorld(world));
   const loans = state.loans.filter(inWorld(world));
@@ -245,55 +295,77 @@ function RightSidebar({ state, world, openItem, openAdd, openPalette }: { state:
       <Insight items={insights(state, world)} onAsk={openPalette} />
       
       {world === 'personal' && (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Planning & Travel</h3>
-          
-          {/* Trips */}
-          {!t ? (
-            <Row className="!px-0" onClick={() => openAdd('trip')}>
-              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Plane className="size-4 text-foreground-muted" /></div>
-              <RowMeta title="Trips & Travel" sub="No upcoming trips" />
-              <LinkButton>Plan <ArrowRight /></LinkButton>
-            </Row>
-          ) : (
-            <div className="group cursor-pointer rounded-xl border border-border bg-surface p-4 transition-colors hover:border-border-strong" onClick={() => openItem('trip', t.id)}>
-              <div className="flex items-center justify-between"><div className="flex items-center gap-2 font-medium text-foreground"><Plane className="size-4 text-foreground-muted" /> {t.destination}</div><Badge>{daysBetween(today(), parseDate(t.start))} days</Badge></div>
-              <div className="mt-3 flex items-center justify-between text-[13px]">
-                <div className="text-foreground-subtle">Budget</div><div className="num font-medium">{money(tripTotal(t), { compact: true })}</div>
-              </div>
-              <Bar value={tripSpent(state, t) / Math.max(1, tripTotal(t))} className="my-2" />
-              <div className="flex items-center justify-between text-[13px]">
-                <div className="text-foreground-subtle">Remaining</div><div className="num font-medium text-foreground">{money(Math.max(0, tripTotal(t) - tripSpent(state, t)), { compact: true })}</div>
-              </div>
-            </div>
-          )}
-
-          {/* Goals */}
-          {state.goals.length === 0 ? (
-            <Row className="!px-0" onClick={() => openAdd('goal')}>
-              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Target className="size-4 text-foreground-muted" /></div>
-              <RowMeta title="Savings Goals" sub="No active goals" />
-              <LinkButton>Plan <ArrowRight /></LinkButton>
-            </Row>
-          ) : (
-            <div className="mt-2 flex flex-col gap-1">
-              {state.goals.slice(0, 3).map((g: Goal) => {
-                const st = goalStats(g);
-                return (
-                  <Row key={g.id} className="!px-0 group" onClick={() => openItem('goal', g.id)}>
-                    <Ring value={st.progress} size={34} stroke={3.5} color={st.onTrack ? 'var(--accent)' : 'var(--warning)'} />
-                    <RowMeta title={g.name} sub={<>{money(g.current, { compact: true })} of {money(g.target, { compact: true })}</>} />
-                    <span className="num text-meta text-foreground-subtle transition-colors group-hover:text-foreground">{Math.round(st.progress * 100)}%</span>
-                  </Row>
-                );
-              })}
-              <Row className="!px-0 mt-1" onClick={() => openAdd('goal')}>
-                <div className="grid size-9 place-items-center rounded-lg border border-dashed border-border bg-transparent"><Plus className="size-4 text-foreground-muted" /></div>
-                <RowMeta title="Add another goal" />
+        <>
+          <Card className="p-5">
+            <SectionHeader title="Planning & Travel" icon={Plane} action={<LinkButton onClick={() => go('trips')}>View All <ArrowRight /></LinkButton>} className="mb-5" />
+            
+            {/* Trips */}
+            {!t ? (
+              <Row className="!px-0" onClick={() => openAdd('trip')}>
+                <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Plane className="size-4 text-foreground-muted" /></div>
+                <RowMeta title="Trips & Travel" sub="No upcoming trips" />
+                <LinkButton>Plan <ArrowRight /></LinkButton>
               </Row>
+            ) : (
+              <div className="group cursor-pointer rounded-xl bg-surface-muted/50 p-4 transition-colors hover:bg-surface-muted" onClick={() => openItem('trip', t.id)}>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="font-bold text-[15px] text-foreground">{t.destination}</div>
+                  <div className="text-[12px] font-semibold text-foreground-muted">
+                    {(() => { const dStart = daysBetween(today(), parseDate(t.start)); const dEnd = daysBetween(today(), parseDate(t.end)); if (dStart > 0) return `In ${dStart} days`; if (dEnd >= 0) return `${dEnd + 1} days left`; return 'Completed'; })()}
+                  </div>
+                </div>
+                <Bar value={tripSpent(state, t) / Math.max(1, tripTotal(t))} tone="accent" className="my-3 h-1.5" />
+                <div className="flex flex-col gap-2 mt-4 text-[13px]">
+                  <div className="flex items-center justify-between"><div className="text-foreground-subtle">Budget</div><div className="num font-medium text-foreground">{money(tripTotal(t), { compact: true })}</div></div>
+                  <div className="flex items-center justify-between"><div className="text-foreground-subtle">Remaining</div><div className="num font-medium text-foreground">{money(Math.max(0, tripTotal(t) - tripSpent(state, t)), { compact: true })}</div></div>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <SectionHeader title="Savings Goals" icon={Target} action={<LinkButton onClick={() => go('plans')}>Plan <ArrowRight /></LinkButton>} className="mb-5" />
+            
+            {/* Goals */}
+            {state.goals.length === 0 ? (
+              <Row className="!px-0" onClick={() => openAdd('goal')}>
+                <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Target className="size-4 text-foreground-muted" /></div>
+                <RowMeta title="Savings Goals" sub="No active goals yet" />
+              </Row>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {state.goals.slice(0, 3).map((g: Goal) => {
+                  const st = goalStats(g);
+                  return (
+                    <Row key={g.id} className="!px-0 group" onClick={() => openItem('goal', g.id)}>
+                      <Ring value={st.progress} size={34} stroke={3.5} color={st.onTrack ? 'var(--accent)' : 'var(--warning)'} />
+                      <RowMeta title={g.name} sub={<>{money(g.current, { compact: true })} of {money(g.target, { compact: true })}</>} />
+                      <span className="num text-meta text-foreground-subtle transition-colors group-hover:text-foreground">{Math.round(st.progress * 100)}%</span>
+                    </Row>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
+          <Card className="p-5">
+            <SectionHeader title="Quick Actions" icon={ArrowRight} className="mb-5" />
+            <div className="grid grid-cols-3 gap-3">
+              <button onClick={() => openAdd('expense')} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface-muted/30 p-3 transition-colors hover:border-border-strong hover:bg-surface-muted">
+                <Plus className="size-4 text-blue-400" />
+                <span className="text-[11px] font-semibold text-foreground-muted">Add Expense</span>
+              </button>
+              <button onClick={() => openAdd('income')} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface-muted/30 p-3 transition-colors hover:border-border-strong hover:bg-surface-muted">
+                <TrendingUp className="size-4 text-positive" />
+                <span className="text-[11px] font-semibold text-foreground-muted">Add Income</span>
+              </button>
+              <button onClick={() => openAdd('goal')} className="flex flex-col items-center justify-center gap-2 rounded-xl border border-border bg-surface-muted/30 p-3 transition-colors hover:border-border-strong hover:bg-surface-muted">
+                <Target className="size-4 text-purple-400" />
+                <span className="text-[11px] font-semibold text-foreground-muted">New Goal</span>
+              </button>
             </div>
-          )}
-        </div>
+          </Card>
+        </>
       )}
 
       <div className="flex flex-col gap-3">
@@ -360,15 +432,16 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
   const world = state.world;
   const student = state.profiles.includes('student') && !state.profiles.includes('personal');
   const recent = state.transactions.filter((t) => (t.world || 'personal') === world).sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
-  const [hour] = useState(() => new Date().getHours());
+  const [hour] = useState(() => estTime().h);
   const isEmpty = !state.accounts.some(inWorld(world)) && !state.transactions.some(inWorld(world)) && !state.recurring.some(inWorld(world));
   const first = state.user.name ? `, ${state.user.name.split(' ')[0]}` : '';
 
   return (
     <div className="animate-fade-in">
       <header className="mb-8 max-md:mb-6">
-        <div className="mb-1.5 text-meta text-foreground-subtle">{fmtDate(today(), true)}</div>
-        <h1 className="font-display text-page font-semibold max-md:text-[26px] max-md:leading-8">Good {hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}{first}</h1>
+        <div className="mb-2 text-meta text-foreground-muted">{new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(today())}</div>
+        <h1 className="font-display text-[32px] tracking-tight font-semibold max-md:text-[26px] max-md:leading-8">Good {hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}{first}</h1>
+        <div className="mt-1 text-[14px] text-foreground-muted">Here's your financial overview for today.</div>
       </header>
 
       {isEmpty ? <EmptyHome world={world} openAdd={openAdd} openPalette={openPalette} go={go} /> : (
@@ -377,7 +450,10 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
             {world === 'business' ? <BusinessHero state={state} /> : student ? <StudentHero state={state} /> : <PersonalHero state={state} />}
             <FlowCard state={state} world={world} />
             <div className="grid gap-8 md:grid-cols-2">
-              <UpcomingCard state={state} world={world} />
+              <div className="flex flex-col gap-8">
+                <UpcomingCard state={state} world={world} />
+                <MonthlyRecapCard state={state} world={world} />
+              </div>
               <div>
                 <SectionHeader title="Recent activity" action={recent.length > 0 && <LinkButton onClick={() => go('activity')}>All <ArrowRight /></LinkButton>} />
                 {recent.length === 0
@@ -386,7 +462,7 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
               </div>
             </div>
           </div>
-          <RightSidebar state={state} world={world} openItem={openItem} openAdd={openAdd} openPalette={openPalette} />
+          <RightSidebar state={state} world={world} openItem={openItem} openAdd={openAdd} openPalette={openPalette} go={go} />
         </div>
       )}
     </div>

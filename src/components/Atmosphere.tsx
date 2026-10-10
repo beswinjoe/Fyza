@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { estTime } from '../engine/format';
 
 /* ================================================================
    Atmosphere — time-aware atmospheric background system
@@ -22,84 +23,84 @@ interface AtmColors {
 // Time anchors (24h clock). Interpolation happens between adjacent anchors.
 const STOPS: { hour: number; colors: AtmColors }[] = [
   {
-    // 0:00 — NIGHT (deep navy)
+    // 0:00 — NIGHT (deep starry night)
     hour: 0,
     colors: {
-      top: [2, 4, 10],
-      mid: [5, 8, 18],
-      bottom: [3, 5, 14],
+      top: [3, 5, 12],
+      mid: [6, 10, 20],
+      bottom: [8, 12, 24],
     },
   },
   {
-    // 5:30 — EARLY MORNING (deep muted blue, slightly brighter)
+    // 5:30 — DAWN (deep muted blue, hint of dawn glow)
     hour: 5.5,
     colors: {
-      top: [8, 12, 24],
-      mid: [14, 22, 42],
-      bottom: [22, 34, 58],
+      top: [12, 18, 36],
+      mid: [20, 25, 45],
+      bottom: [40, 30, 50],
     },
   },
   {
-    // 7:00 — MORNING (cool blue, calm atmosphere)
+    // 7:00 — MORNING (gentle cool blue)
     hour: 7,
     colors: {
-      top: [12, 18, 32],
-      mid: [18, 28, 52],
-      bottom: [28, 42, 68],
+      top: [20, 35, 60],
+      mid: [30, 45, 70],
+      bottom: [50, 65, 85],
     },
   },
   {
-    // 10:00 — DAYTIME (rich soft blue)
+    // 10:00 — DAYTIME (brighter sky blue, but still dark-mode compatible)
     hour: 10,
     colors: {
-      top: [14, 20, 36],
-      mid: [20, 30, 54],
-      bottom: [30, 44, 72],
+      top: [30, 50, 80],
+      mid: [45, 70, 100],
+      bottom: [60, 90, 120],
     },
   },
   {
-    // 16:00 — AFTERNOON (still blue, warming slightly)
+    // 16:00 — AFTERNOON (slightly warmer neutral blue)
     hour: 16,
     colors: {
-      top: [14, 18, 34],
-      mid: [22, 28, 50],
-      bottom: [32, 40, 66],
+      top: [25, 45, 75],
+      mid: [35, 60, 90],
+      bottom: [55, 80, 110],
     },
   },
   {
-    // 17:30 — GOLDEN HOUR (muted blue into warm beige/golden)
+    // 17:30 — GOLDEN HOUR (subtle amber/gold blend)
     hour: 17.5,
     colors: {
-      top: [16, 18, 32],
-      mid: [28, 28, 42],
-      bottom: [42, 38, 48],
+      top: [20, 30, 60],
+      mid: [40, 45, 60],
+      bottom: [80, 60, 45],
     },
   },
   {
-    // 19:00 — SUNSET (muted blue/purple, soft pink/rose lower area)
+    // 19:00 — SUNSET (muted blue fading to soft rose)
     hour: 19,
     colors: {
-      top: [14, 15, 30],
-      mid: [24, 20, 38],
-      bottom: [38, 26, 42],
+      top: [15, 20, 45],
+      mid: [35, 30, 55],
+      bottom: [70, 35, 50],
     },
   },
   {
-    // 20:30 — DUSK (transitioning back to night)
+    // 20:30 — DUSK (darkening indigo)
     hour: 20.5,
     colors: {
-      top: [10, 12, 24],
-      mid: [16, 20, 36],
-      bottom: [22, 28, 48],
+      top: [8, 12, 30],
+      mid: [15, 20, 40],
+      bottom: [25, 25, 50],
     },
   },
   {
-    // 22:00 — NIGHT (return to deep navy)
+    // 22:00 — NIGHT (return to deep night)
     hour: 22,
     colors: {
-      top: [2, 4, 10],
-      mid: [5, 8, 18],
-      bottom: [3, 5, 14],
+      top: [3, 5, 12],
+      mid: [6, 10, 20],
+      bottom: [8, 12, 24],
     },
   },
 ];
@@ -141,8 +142,7 @@ function rgb(c: readonly number[]): string {
 }
 
 function getFractionalHour(): number {
-  const now = new Date();
-  return now.getHours() + now.getMinutes() / 60 + now.getSeconds() / 3600;
+  return estTime().fractional;
 }
 
 // ── Component ───────────────────────────────────────────────────

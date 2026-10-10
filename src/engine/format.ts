@@ -10,7 +10,7 @@ export const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); retur
 export const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
 export const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
-export const daysBetween = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / 86400000);
+export const daysBetween = (a: Date, b: Date) => Math.round((Date.UTC(b.getFullYear(), b.getMonth(), b.getDate()) - Date.UTC(a.getFullYear(), a.getMonth(), a.getDate())) / 86400000);
 export const monthsBetween = (a: Date, b: Date) => (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth()) - (b.getDate() < a.getDate() ? 1 : 0);
 
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -37,3 +37,22 @@ export const relDay = (s: string | Date) => {
 export { money, cur } from './currency';
 export const pct = (n: number, digits = 0) => `${(n * 100).toFixed(digits)}%`;
 export const uid = () => Math.random().toString(36).slice(2, 10);
+
+export function estTime() {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    hour12: false,
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric'
+  });
+  const parts = formatter.formatToParts(new Date());
+  let h = 0, m = 0, s = 0;
+  for (const p of parts) {
+    if (p.type === 'hour') h = parseInt(p.value, 10);
+    if (p.type === 'minute') m = parseInt(p.value, 10);
+    if (p.type === 'second') s = parseInt(p.value, 10);
+  }
+  if (h === 24) h = 0;
+  return { h, m, s, fractional: h + m / 60 + s / 3600 };
+}
