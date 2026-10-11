@@ -16,4 +16,5 @@ export interface AIResult {
   autoApply?: boolean;
   scenario?: { name: string; sc: Record<string, unknown> };
   applied?: number;
+  undoOps?: AIAction[];
 }

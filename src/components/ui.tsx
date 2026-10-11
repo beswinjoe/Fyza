@@ -506,9 +506,16 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
       onMouseMove={(e) => { if (!ref.current) return; const r = ref.current.getBoundingClientRect(); const i = Math.round(((e.clientX - r.left - pad.l) / (w - pad.l - pad.r)) * (n - 1)); setHoverState(Math.max(0, Math.min(n - 1, i))); }}>
       <svg className="block w-full overflow-visible" width={w} height={height} role="img" aria-label={series.map((s) => s.name).join(' and ') + ' chart'}>
         <defs>
+          <filter id={`${gid}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
           {series.map((s, k) => (
             <linearGradient key={k} id={`${gid}${k}`} x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={s.color} stopOpacity={s.fill === false ? 0 : 0.08} />
+              <stop offset="0%" stopColor={s.color} stopOpacity={s.fill === false ? 0 : 0.16} />
               <stop offset="100%" stopColor={s.color} stopOpacity="0" />
             </linearGradient>
           ))}
@@ -526,7 +533,10 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
           return (
             <g key={k}>
               <path d={area} fill={`url(#${gid}${k})`} className="anim-reveal-area" />
-              <path d={line} fill="none" stroke={s.color} strokeWidth={s.width || 1.5} strokeDasharray={s.dashed ? '4 5' : undefined} strokeLinecap="round"
+              {!s.dashed && (
+                <path d={line} fill="none" stroke={s.color} strokeWidth={(s.width || 1.75) + 3} strokeOpacity="0.25" strokeLinecap="round" filter={`url(#${gid}-glow)`} />
+              )}
+              <path d={line} fill="none" stroke={s.color} strokeWidth={s.width || 1.75} strokeDasharray={s.dashed ? '4 5' : undefined} strokeLinecap="round"
                 className={!s.dashed ? "anim-draw" : ""} />
             </g>
           );
@@ -535,7 +545,12 @@ export function AreaChart({ labels, series, height = 200, split, fmt = (v: numbe
         {hover != null && (
           <g className="transition-opacity duration-200" style={{ opacity: hover != null ? 1 : 0 }}>
             <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={height - pad.b} stroke="var(--border-strong)" className="transition-all duration-200 ease-out" />
-            {series.map((s, k) => <circle key={k} cx={x(hover)} cy={y(s.values[hover])} r={3.5} fill="var(--surface)" stroke={s.color} strokeWidth="2" className="transition-all duration-200 ease-out anim-point" />)}
+            {series.map((s, k) => (
+              <g key={k}>
+                <circle cx={x(hover)} cy={y(s.values[hover])} r={7} fill={s.color} fillOpacity="0.2" className="transition-all duration-200" />
+                <circle cx={x(hover)} cy={y(s.values[hover])} r={3.5} fill="var(--surface)" stroke={s.color} strokeWidth="2" className="transition-all duration-200 ease-out anim-point" />
+              </g>
+            ))}
           </g>
         )}
       </svg>

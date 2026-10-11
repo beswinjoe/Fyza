@@ -6,7 +6,7 @@ import { money } from '../engine/format';
 import { AreaChart, AIMark, Badge, Button, Eyebrow, Kbd, cn, toneText, toTone } from './ui';
 import { AppState } from '../types/app';
 import { AIResult } from '../types/ai';
-import { Action } from '../types/store';
+import { Action, AIAction } from '../types/store';
 
 export function useAI() {
   const { state, dispatch } = useStore();
@@ -33,13 +33,49 @@ export function AICard({ r, compact }: { r: AIResult; compact?: boolean }) {
   const live = state.aiHistory.find((x) => x.id === r.id) || r;
 
   const apply = (i: number) => {
-    if (!live.actions) return;
-    dispatch({ type: 'batch', ops: [...(live.actions[i].ops as Action[]), { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: i } }] });
+    if (!live.actions || !live.actions[i]) return;
+    const action = live.actions[i];
+    const undoOps: Action[] = [];
+    for (const op of action.ops) {
+      if (op.type === 'add') {
+        undoOps.push({ type: 'remove', col: op.col, id: (op.item as { id: string }).id });
+      } else if (op.type === 'update') {
+        const colItems = (state[op.col] as Array<{ id: string }>) || [];
+        const existing = colItems.find((x) => x.id === op.id);
+        if (existing) {
+          undoOps.push({ type: 'update', col: op.col, id: op.id, patch: { ...existing } });
+        }
+      } else if (op.type === 'remove') {
+        const colItems = (state[op.col] as Array<{ id: string }>) || [];
+        const existing = colItems.find((x) => x.id === op.id);
+        if (existing) {
+          undoOps.push({ type: 'add', col: op.col, item: { ...existing } });
+        }
+      }
+    }
+    undoOps.reverse();
+    dispatch({
+      type: 'batch',
+      ops: [
+        ...(action.ops as Action[]),
+        { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: i, undoOps: undoOps as unknown as AIAction[] } },
+      ],
+    });
   };
   const undo = () => {
     if (!live.actions || live.applied == null) return;
-    const ops = live.actions[live.applied].ops.map((o) => ({ type: 'remove', col: o.col, id: 'item' in o ? (o.item as { id: string }).id : (o as { id: string }).id }));
-    dispatch({ type: 'batch', ops: [...ops, { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: undefined } }] } as Action);
+    const undoOps = (live.undoOps || live.actions[live.applied].ops.map((o) => ({
+      type: 'remove',
+      col: o.col,
+      id: 'item' in o ? (o.item as { id: string }).id : (o as { id: string }).id,
+    }))) as Action[];
+    dispatch({
+      type: 'batch',
+      ops: [
+        ...undoOps,
+        { type: 'update', col: 'aiHistory', id: r.id, patch: { applied: undefined, undoOps: undefined } },
+      ],
+    });
   };
 
   return (

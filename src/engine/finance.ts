@@ -39,7 +39,7 @@ export function loanStats(loan: Loan, now = today()) {
   return {
     emi: e, paid, remainingMonths: n - paid, balance, interestPaid,
     interestRemaining: totalInterest - interestPaid, totalInterest,
-    totalPayable: P + totalInterest, progress: (P - balance) / P,
+    totalPayable: P + totalInterest, progress: P > 0 ? Math.min(1, Math.max(0, (P - balance) / P)) : 1,
     nextDue: ymd(nextDue), endDate: ymd(endDate), schedule, active: paid < n,
   };
 }
@@ -53,9 +53,13 @@ export function accountBalance(state: AppState, acc: Account) {
     if (t.type === 'transfer') {
       if (t.fromAccountId === acc.id) b -= t.amount;
       if (t.toAccountId === acc.id) b += t.amount;
-    } else if (t.accountId === acc.id) {
-      if (t.type === 'expense' && t.cardId && isCredit(state, t.cardId)) continue;
-      b += t.type === 'income' ? t.amount : -t.amount;
+    } else {
+      const card = t.cardId ? state.cards.find((c) => c.id === t.cardId) : null;
+      const isLinkedDebit = !t.accountId && card?.kind === 'debit' && card.accountId === acc.id;
+      if (t.accountId === acc.id || isLinkedDebit) {
+        if (t.type === 'expense' && card?.kind === 'credit') continue;
+        b += t.type === 'income' ? t.amount : -t.amount;
+      }
     }
   }
   return b;
@@ -66,11 +70,14 @@ export const available = (state: AppState, world: World) => {
   
   let untrackedCash = 0;
   for (const t of state.transactions) {
+    const card = t.cardId ? state.cards.find((c) => c.id === t.cardId) : null;
+    const isLinkedDebit = !t.accountId && card?.kind === 'debit' && !!card.accountId;
+
     if (t.type === 'transfer') {
       if (!t.toAccountId && (t.toWorld || W(t)) === world) untrackedCash += t.amount;
       if (!t.fromAccountId && (t.fromWorld || W(t)) === world) untrackedCash -= t.amount;
-    } else if (W(t) === world && !t.accountId) {
-      if (t.type === 'expense' && t.cardId && isCredit(state, t.cardId)) continue;
+    } else if (W(t) === world && !t.accountId && !isLinkedDebit) {
+      if (t.type === 'expense' && card?.kind === 'credit') continue;
       untrackedCash += t.type === 'income' ? t.amount : -t.amount;
     }
   }
@@ -79,7 +86,7 @@ export const available = (state: AppState, world: World) => {
 };
 
 export function cardStats(state: AppState, card: Card, now = today()) {
-  const sd = +(card.statementDay || 1);
+  const sd = Math.max(1, Math.min(28, +(card.statementDay || 1)));
   let cycleStart = new Date(now.getFullYear(), now.getMonth(), sd + 1);
   if (cycleStart > now) cycleStart = new Date(now.getFullYear(), now.getMonth() - 1, sd + 1);
   const txns = state.transactions.filter((t) => t.cardId === card.id);
@@ -92,12 +99,18 @@ export function cardStats(state: AppState, card: Card, now = today()) {
     return s;
   }, 0);
   
+  const dueDay = +(card.dueDay || 0);
   const statement = new Date(cycleStart.getFullYear(), cycleStart.getMonth() + 1, sd);
-  const due = new Date(statement.getFullYear(), statement.getMonth() + (+(card.dueDay || 0) < sd ? 1 : 0), +(card.dueDay || 0) || sd + 18);
+  const due = new Date(
+    statement.getFullYear(),
+    statement.getMonth() + (dueDay > 0 && dueDay < sd ? 1 : 0),
+    dueDay || Math.min(28, sd + 18)
+  );
   const lastStatementBalance = Math.max(0, totalBalance - spent);
+  const limit = Math.max(0, +(card.limit || 0) || 0);
   return {
-    spent, txns, limit: +(card.limit || 0) || 0, availableLimit: Math.max(0, (+(card.limit || 0) || 0) - totalBalance),
-    utilization: card.limit ? totalBalance / card.limit : 0, statementDate: ymd(statement), dueDate: ymd(due), totalBalance, lastStatementBalance
+    spent, txns, limit, availableLimit: Math.max(0, limit - totalBalance),
+    utilization: limit ? totalBalance / limit : 0, statementDate: ymd(statement), dueDate: ymd(due), totalBalance, lastStatementBalance
   };
 }
 
@@ -238,7 +251,7 @@ export function forecast(state: AppState, world: World, months = 6, sc: Scenario
       variable *= sc.variablePct ? 1 + sc.variablePct : 1;
     }
     const saved = (sc.monthlySave && i >= 1 ? sc.monthlySave : 0) + goals;
-    const expense = recurringExp + emis + trips + variable + oneTime + goals;
+    const expense = recurringExp + emis + trips + variable + oneTime;
     const net = income - expense;
     bal += net;
     let actualIncome = 0, actualExpense = 0;
@@ -360,8 +373,8 @@ export function insights(state: AppState, world: World, now = today()) {
 }
 
 export function netWorth(state: AppState) {
-  const assets = state.accounts.reduce((s, a) => s + accountBalance(state, a), 0) + (state.goals || []).reduce((s, g) => s + (+g.current || 0), 0);
+  const cashAssets = available(state, 'personal') + available(state, 'business');
   const cardDebt = state.cards.filter((c) => c.kind === 'credit').reduce((s, c) => s + Math.max(0, cardStats(state, c).totalBalance), 0);
   const loanDebt = state.loans.reduce((s, l) => s + loanStats(l).balance, 0);
-  return { assets, liabilities: cardDebt + loanDebt, net: assets - cardDebt - loanDebt, cardDebt, loanDebt };
+  return { assets: cashAssets, liabilities: cardDebt + loanDebt, net: cashAssets - cardDebt - loanDebt, cardDebt, loanDebt };
 }

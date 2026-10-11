@@ -3,6 +3,7 @@ import { ArrowRight, Plane, Plus, CalendarClock, TrendingDown, TrendingUp, Alert
 import { useStore } from '../engine/store';
 import { today, mkey, money, fmtDate, relDay, addMonths, monthLabel, daysBetween, parseDate, estTime } from '../engine/format';
 import { available, monthSummary, insights, forecast, history, upcoming, goalStats, tripTotal, tripSpent, studentCycle, accountBalance, cardStats, loanStats, inWorld, netWorth } from '../engine/finance';
+import { hasCapability } from '../engine/capabilities';
 import { Money, Bar, Icon, AreaChart, BarsChart, Ring, catIcon, ACC_ICON, Card, SectionHeader, Button, LinkButton, Badge, Eyebrow, Stat, HeroAmount, Legend, AIMark, Row, RowMeta, Kbd, cn } from '../components/ui';
 import { TxRow } from './Activity';
 import { BusinessHero } from './Business';
@@ -122,12 +123,33 @@ export function FlowCard({ state, world }: { state: AppState; world: World }) {
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const hist = history(state, world, 6);
   const fc = forecast(state, world, 6);
+
+  const isPast = mode === 'past';
+  const lastHist = hist[hist.length - 1];
+  const activeForecast = hoverIdx !== null ? fc[hoverIdx] : fc[5];
+  const activeHist = hoverIdx !== null ? hist[hoverIdx] : lastHist;
+
+  const displayVal = isPast ? (activeHist?.net ?? 0) : (activeForecast?.balance ?? 0);
+  const displayLabel = isPast
+    ? `net in ${activeHist?.label ?? ''}`
+    : hoverIdx !== null
+      ? `in ${activeForecast?.label ?? ''}`
+      : `by ${activeForecast?.label ?? ''}`;
+
+  const isPositive = displayVal >= 0;
+  const chartIsPositive = (fc[5]?.balance ?? 0) >= 0;
+
   return (
     <Card className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
         <div className="flex items-center gap-2">
           <div className="text-[16px] font-bold text-foreground">Where you're heading</div>
-          <div className="grid size-4 place-items-center rounded-full border border-foreground-muted text-[10px] font-bold text-foreground-muted">i</div>
+          <div
+            title="Projected liquidity trajectory over the next 6 months. Positive balance glows green; negative deficit glows red."
+            className="grid size-4 place-items-center rounded-full border border-foreground-muted text-[10px] font-bold text-foreground-muted cursor-help hover:border-foreground hover:text-foreground transition-colors"
+          >
+            i
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-surface-muted rounded-lg p-0.5 flex">
@@ -141,14 +163,31 @@ export function FlowCard({ state, world }: { state: AppState; world: World }) {
       </div>
       <div className="mb-4">
         <div className="flex items-baseline gap-2">
-          <span className="text-[28px] font-bold tracking-tight text-negative leading-none">{money(fc[5].balance, { compact: true, sign: true })}</span>
-          <span className="text-[13px] font-medium text-foreground-muted">by {fc[5].label}</span>
+          <span className={cn(
+            "text-[28px] font-bold tracking-tight leading-none transition-all duration-300",
+            isPositive
+              ? "text-positive drop-shadow-[0_0_12px_rgba(90,212,155,0.45)]"
+              : "text-negative drop-shadow-[0_0_12px_rgba(240,127,127,0.45)]"
+          )}>
+            {money(displayVal, { compact: true, sign: true })}
+          </span>
+          <span className="text-[13px] font-medium text-foreground-muted">{displayLabel}</span>
         </div>
       </div>
       
       {mode === 'forecast' ? (
         <div className="animate-fade-in">
-          <AreaChart height={200} labels={fc.map((r) => r.label)} series={[{ name: 'Balance', values: fc.map((r) => r.balance), color: 'var(--chart-1)' }]} externalHover={hoverIdx} onHover={setHoverIdx} />
+          <AreaChart
+            height={200}
+            labels={fc.map((r) => r.label)}
+            series={[{
+              name: 'Balance',
+              values: fc.map((r) => r.balance),
+              color: chartIsPositive ? 'var(--positive)' : 'var(--negative)'
+            }]}
+            externalHover={hoverIdx}
+            onHover={setHoverIdx}
+          />
           {fc.some((r) => r.pressure || r.tripList.length) && (
             <div className="mt-6 border-t border-border pt-4">
               <div className="grid grid-cols-3 gap-4">
@@ -220,10 +259,10 @@ export function MonthlyRecapCard({ state, world }: { state: AppState; world: Wor
 }
 
 /* ---------- Empty home ---------- */
-function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd: (t?: string) => void; openPalette: () => void; go: (p: string) => void }) {
+function EmptyHome({ state, world, openAdd, openPalette, go }: { state: AppState; world: World; openAdd: (t?: string) => void; openPalette: () => void; go: (p: string) => void }) {
   const biz = world === 'business';
   const sections = [
-    { icon: Landmark, title: 'Accounts & money', empty: 'No accounts yet', d: 'Add cash, bank, savings, or wallet tracking later.', cta: 'Add account', on: () => openAdd('account') },
+    ...(hasCapability(state, 'accounts') ? [{ icon: Landmark, title: 'Accounts & money', empty: 'No accounts yet', d: 'Add cash, bank, savings, or wallet tracking later.', cta: 'Add account', on: () => openAdd('account') }] : []),
     { icon: ReceiptText, title: 'Activity', empty: 'No activity yet', d: 'Add your first income or expense.', cta: 'Add transaction', on: () => openAdd('expense') },
     ...(biz ? [] : [{ icon: Target, title: 'Goals', empty: 'No goals yet', d: 'Create a goal and Fyza will track the path.', cta: 'Create goal', on: () => openAdd('goal') }]),
     { icon: Compass, title: 'Plans', empty: 'No forecast yet', d: 'Add income and spending and Fyza will project your future.', cta: 'Add recurring income', on: () => openAdd('recurring'), secondary: { label: 'Open Plans', on: () => go('plans') } },
@@ -248,7 +287,9 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
           </div>
           <div className="mt-6 flex flex-wrap items-center gap-6 text-[13.5px] text-foreground-subtle">
             <button onClick={openPalette} className="inline-flex items-center gap-2 transition-colors hover:text-foreground"><AIMark className="size-3.5" />Ask Fyza</button>
-            <button onClick={() => openAdd('account')} className="transition-colors hover:text-foreground">Add an account <span className="opacity-60">(optional)</span></button>
+            {hasCapability(state, 'accounts') && (
+              <button onClick={() => openAdd('account')} className="transition-colors hover:text-foreground">Add an account <span className="opacity-60">(optional)</span></button>
+            )}
           </div>
         </div>
         <div aria-hidden className="relative h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] sm:h-[340px] lg:h-auto lg:min-h-[460px]">
@@ -285,9 +326,13 @@ function EmptyHome({ world, openAdd, openPalette, go }: { world: World; openAdd:
 /* ---------- Adaptive Sidebar ---------- */
 function RightSidebar({ state, world, openItem, openAdd, openPalette, go }: { state: AppState, world: World, openItem: OpenItem, openAdd: (t?: string) => void, openPalette: () => void, go: (p: string) => void }) {
   const t = [...state.trips].filter((x) => parseDate(x.end).getTime() >= today().getTime()).sort((a, b) => a.start.localeCompare(b.start))[0];
-  const accs = state.accounts.filter(inWorld(world));
-  const loans = state.loans.filter(inWorld(world));
-  const cards = world === 'personal' ? state.cards : [];
+  const canAccs = hasCapability(state, 'accounts');
+  const canCards = world === 'personal' && hasCapability(state, 'cards');
+  const canLoans = hasCapability(state, 'loans');
+  const accs = canAccs ? state.accounts.filter(inWorld(world)) : [];
+  const loans = canLoans ? state.loans.filter(inWorld(world)) : [];
+  const cards = canCards ? state.cards : [];
+  const hasAnyHoldingsCapability = canAccs || canCards || canLoans;
   const holdingsEmpty = !accs.length && !loans.length && !cards.length;
 
   return (
@@ -368,61 +413,65 @@ function RightSidebar({ state, world, openItem, openAdd, openPalette, go }: { st
         </>
       )}
 
-      <div className="flex flex-col gap-3">
-        <h3 className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Holdings</h3>
-        
-        {holdingsEmpty ? (
-          <div className="flex flex-col gap-1">
-            <Row className="!px-0" onClick={() => openAdd('account')}>
-              <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Landmark className="size-4 text-foreground-muted" /></div>
-              <RowMeta title="Accounts" sub="None connected" />
-              <LinkButton>Add <ArrowRight /></LinkButton>
-            </Row>
-            {world === 'personal' && (
-              <Row className="!px-0" onClick={() => openAdd('card')}>
-                <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><CreditCard className="size-4 text-foreground-muted" /></div>
-                <RowMeta title="Credit Cards" sub="Track utilization" />
-                <LinkButton>Add <ArrowRight /></LinkButton>
-              </Row>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-1">
-            {accs.map((a: Account) => (
-              <Row key={a.id} className="!px-0" onClick={() => openItem('account', a.id)}>
-                <Icon as={ACC_ICON[a.type] || ACC_ICON.other} size="sm" />
-                <RowMeta title={a.name} sub={<span className="capitalize">{a.institution || a.type}</span>} />
-                <Money v={accountBalance(state, a)} className="text-body font-medium" />
-              </Row>
-            ))}
-            {cards.map((c: CardType) => {
-              const s = cardStats(state, c);
-              return (
-                <Row key={c.id} className="!px-0" onClick={() => openItem('card', c.id)}>
-                  <Icon as={CreditCard} size="sm" />
-                  <RowMeta title={<>{c.name} {c.last4 && <span className="text-foreground-subtle">•• {c.last4}</span>}</>} sub={c.kind === 'credit' ? `${Math.round(s.utilization * 100)}% used` : 'Debit'} />
-                  <Money v={s.spent} className="text-body font-medium" />
+      {hasAnyHoldingsCapability && (
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[12px] font-medium uppercase tracking-wider text-foreground-subtle">Holdings</h3>
+          
+          {holdingsEmpty ? (
+            <div className="flex flex-col gap-1">
+              {canAccs && (
+                <Row className="!px-0" onClick={() => openAdd('account')}>
+                  <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><Landmark className="size-4 text-foreground-muted" /></div>
+                  <RowMeta title="Accounts" sub="None connected" />
+                  <LinkButton>Add <ArrowRight /></LinkButton>
                 </Row>
-              );
-            })}
-            {loans.map((l: Loan) => {
-              const s = loanStats(l);
-              return (
-                <Row key={l.id} className="!px-0" onClick={() => openItem('loan', l.id)}>
-                  <Icon as={HandCoins} size="sm" />
-                  <RowMeta title={l.name} sub={`${money(s.emi)}/mo`} />
-                  <Money v={s.balance} compact className="text-body font-medium" />
+              )}
+              {canCards && (
+                <Row className="!px-0" onClick={() => openAdd('card')}>
+                  <div className="grid size-9 place-items-center rounded-lg bg-surface-muted"><CreditCard className="size-4 text-foreground-muted" /></div>
+                  <RowMeta title="Credit Cards" sub="Track utilization" />
+                  <LinkButton>Add <ArrowRight /></LinkButton>
                 </Row>
-              );
-            })}
-            
-            <div className="mt-2 flex items-center gap-3">
-              <Button variant="ghost" size="sm" onClick={() => openAdd('account')}><Plus /> Account</Button>
-              {world === 'personal' && <Button variant="ghost" size="sm" onClick={() => openAdd('card')}><Plus /> Card</Button>}
+              )}
             </div>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {accs.map((a: Account) => (
+                <Row key={a.id} className="!px-0" onClick={() => openItem('account', a.id)}>
+                  <Icon as={ACC_ICON[a.type] || ACC_ICON.other} size="sm" />
+                  <RowMeta title={a.name} sub={<span className="capitalize">{a.institution || a.type}</span>} />
+                  <Money v={accountBalance(state, a)} className="text-body font-medium" />
+                </Row>
+              ))}
+              {cards.map((c: CardType) => {
+                const s = cardStats(state, c);
+                return (
+                  <Row key={c.id} className="!px-0" onClick={() => openItem('card', c.id)}>
+                    <Icon as={CreditCard} size="sm" />
+                    <RowMeta title={<>{c.name} {c.last4 && <span className="text-foreground-subtle">•• {c.last4}</span>}</>} sub={c.kind === 'credit' ? `${Math.round(s.utilization * 100)}% used` : 'Debit'} />
+                    <Money v={s.spent} className="text-body font-medium" />
+                  </Row>
+                );
+              })}
+              {loans.map((l: Loan) => {
+                const s = loanStats(l);
+                return (
+                  <Row key={l.id} className="!px-0" onClick={() => openItem('loan', l.id)}>
+                    <Icon as={HandCoins} size="sm" />
+                    <RowMeta title={l.name} sub={`${money(s.emi)}/mo`} />
+                    <Money v={s.balance} compact className="text-body font-medium" />
+                  </Row>
+                );
+              })}
+              
+              <div className="mt-2 flex items-center gap-3">
+                {canAccs && <Button variant="ghost" size="sm" onClick={() => openAdd('account')}><Plus /> Account</Button>}
+                {canCards && <Button variant="ghost" size="sm" onClick={() => openAdd('card')}><Plus /> Card</Button>}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -444,7 +493,7 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
         <div className="mt-1 text-[14px] text-foreground-muted">Here's your financial overview for today.</div>
       </header>
 
-      {isEmpty ? <EmptyHome world={world} openAdd={openAdd} openPalette={openPalette} go={go} /> : (
+      {isEmpty ? <EmptyHome state={state} world={world} openAdd={openAdd} openPalette={openPalette} go={go} /> : (
         <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_320px] stagger">
           <div className="flex min-w-0 flex-col gap-8">
             {world === 'business' ? <BusinessHero state={state} /> : student ? <StudentHero state={state} /> : <PersonalHero state={state} />}

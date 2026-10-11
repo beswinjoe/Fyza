@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/favicon.png?v=2" />
@@ -7,10 +7,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Fyza — Your financial workspace</title>
     <meta name="description" content="Fyza is a calm, precise financial workspace for personal, student and business money." />
-    <meta name="theme-color" content="#0b0b0d" />
+    <meta name="theme-color" content="#0b1020" />
+    <script>
+      // Prevent FOUC: apply theme before first paint
+      (function(){
+        try {
+          var p = localStorage.getItem('fyza.theme');
+          var t = (p === 'light' || p === 'dark') ? p
+                : (p === 'system' || !p) && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light'
+                : 'dark';
+          document.documentElement.setAttribute('data-theme', t);
+          document.documentElement.style.colorScheme = t;
+          var m = document.querySelector('meta[name="theme-color"]');
+          if (m) m.setAttribute('content', t === 'dark' ? '#0b1020' : '#f7f7f6');
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+

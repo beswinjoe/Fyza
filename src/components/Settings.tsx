@@ -1,19 +1,27 @@
 import { useState } from 'react';
-import { ArrowRight, LogOut } from 'lucide-react';
+import { ArrowRight, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { findCurrency, symbolOf } from '../engine/currency';
 import { CurrencyPicker } from './CurrencyPicker';
-import { Button, Drawer, Input } from './ui';
+import { Button, Drawer, Input, cn } from './ui';
+import { getStoredPreference, setTheme, type ThemePreference } from '../engine/theme';
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-2 mt-8 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle first:mt-2">{children}</div>
 );
+
+const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.ElementType; desc: string }[] = [
+  { value: 'system', label: 'System', icon: Monitor, desc: 'Follow your OS setting' },
+  { value: 'light', label: 'Light', icon: Sun, desc: 'Clean, bright interface' },
+  { value: 'dark', label: 'Dark', icon: Moon, desc: 'Fyza\'s signature navy' },
+];
 
 export default function Settings({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
   const [name, setName] = useState(state.user.name);
   const [picking, setPicking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
+  const [themePref, setThemePref] = useState<ThemePreference>(getStoredPreference);
 
   const records = state.transactions.length + state.recurring.length + state.goals.length + state.trips.length + state.loans.length + state.accounts.length + state.cards.length + state.invoices.length;
   const c = findCurrency(state.currency);
@@ -32,11 +40,40 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const saveName = () => { if (name.trim() && name.trim() !== state.user.name) dispatch({ type: 'set', patch: { user: { ...state.user, name: name.trim() } } }); };
   const reset = () => { if (window.confirm('Reset workspace? This permanently clears all Fyza data on this device.')) { dispatch({ type: 'reset' }); onClose(); } };
 
+  const handleTheme = (pref: ThemePreference) => {
+    setThemePref(pref);
+    setTheme(pref);
+  };
+
   return (
     <Drawer title="Settings" onClose={onClose}>
       <Label>Profile</Label>
       <Input value={name} onChange={(e) => setName(e.target.value)} onBlur={saveName} onKeyDown={(e) => e.key === 'Enter' && saveName()} aria-label="Name" placeholder="Your name" />
       <p className="mt-3 text-[13px] capitalize text-foreground-subtle">{state.profiles.join(' · ') || 'personal'}</p>
+
+      <Label>Appearance</Label>
+      <div className="flex gap-2" role="radiogroup" aria-label="Theme">
+        {THEME_OPTIONS.map((opt) => {
+          const on = themePref === opt.value;
+          return (
+            <button
+              key={opt.value}
+              role="radio"
+              aria-checked={on}
+              onClick={() => handleTheme(opt.value)}
+              className={cn(
+                'group flex flex-1 flex-col items-center gap-2 rounded-xl border py-3 px-2 text-center transition-all duration-150',
+                on
+                  ? 'border-accent bg-accent-soft text-foreground shadow-card'
+                  : 'border-border bg-surface text-foreground-muted hover:border-border-strong hover:text-foreground'
+              )}
+            >
+              <opt.icon className={cn('size-5 transition-colors', on ? 'text-accent' : 'text-foreground-subtle group-hover:text-foreground-muted')} strokeWidth={1.75} />
+              <span className="text-[13px] font-medium">{opt.label}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <Label>Currency</Label>
       {!picking ? (
