@@ -14,9 +14,9 @@ global.localStorage = {
   },
   removeItem: (k: string) => { delete store[k]; },
   clear: () => { for (const k in store) delete store[k]; },
-  length: 0,
-  key: () => null
-};
+  get length() { return Object.keys(store).length; },
+  key: (i: number) => Object.keys(store)[i] || null,
+} as any;
 
 console.log('Running persistence tests...');
 
@@ -46,9 +46,12 @@ assert.equal(migrated.version, CURRENT_VERSION);
 assert.equal(migrated.data.currency, 'JPY');
 assert.equal(migrated.data.transactions[0].amount, 100);
 
-// D. Corrupted JSON
+// D. Corrupted JSON & Backup Preservation
 const corrupted = deserializeState('{ invalid json');
 assert.equal(corrupted.version, CURRENT_VERSION); // Should fallback to empty workspace safely
+const backups = Object.keys(store).filter(k => k.startsWith('fyza.corrupted_backup_'));
+assert.ok(backups.length > 0, 'Corrupted backup must be saved to localStorage');
+assert.equal(store[backups[0]], '{ invalid json');
 
 // E. Invalid record
 const dataWithInvalidRecord = { ...EMPTY, transactions: [{ id: 'tx2', amount: 'hello', type: 'invalid_type', date: 'not-a-date' }] };
@@ -82,7 +85,29 @@ throwOnSave = true;
 saveState(validEnvelope);
 throwOnSave = false;
 
-// L. Workspace isolation
-// Covered by the workspaceId presence in the envelope
+// L. Malformed aiHistory and categories validation in hydrate
+const hydratedMalformed = deserializeState(JSON.stringify({
+  version: CURRENT_VERSION,
+  workspaceId: 'ws_test_malformed',
+  updatedAt: new Date().toISOString(),
+  data: {
+    ...EMPTY,
+    aiHistory: [
+      { id: 'ai1', title: 'Good', summary: 'Summary', kind: 'answer', at: Date.now() },
+      { id: 123, title: null, kind: 'unknown' }, // malformed, should be dropped
+      null,
+      'string instead of object',
+    ],
+    categories: ['  Food  ', 'Food', '  ', 123, 'Travel'], // duplicates and spaces
+  }
+}));
+assert.equal(hydratedMalformed.data.aiHistory.length, 1);
+assert.equal(hydratedMalformed.data.aiHistory[0].id, 'ai1');
+assert.deepEqual(hydratedMalformed.data.categories, ['Food', 'Travel']);
+
+// M. Account opening balance allowNegative vs normal amounts
+const accValid = validateItem('accounts', { name: 'Overdraft', opening: -1500 });
+assert.equal(accValid?.opening, -1500);
+assert.throws(() => validateItem('transactions', { amount: -50 }), /Negative numbers not allowed/);
 
 console.log('All persistence tests passed!');

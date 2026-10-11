@@ -52,9 +52,15 @@ function toOps(type: string, v: Record<string, any>, state: AppState) {
     case 'expense': case 'income':
       return [{ col: 'transactions', item: { type, amount: n(v.amount), note: v.note || v.category, category: v.category, date: v.date, accountId: v.accountId || undefined, cardId: v.cardId || undefined, tripId: v.tripId || undefined, tags: (v.tags || '').split(',').map((s: string) => s.trim()).filter(Boolean), world: v.accountId ? accWorld(v.accountId) : world } }];
     case 'recurring': return [{ col: 'recurring', item: { name: v.name || v.category, type: v.type, amount: n(v.amount), day: n(v.day) || 1, category: v.category, accountId: v.accountId || undefined, world: v.accountId ? accWorld(v.accountId) : world } }];
-    case 'account': return [{ col: 'accounts', item: { name: v.name || 'Account', type: v.type, institution: v.institution, opening: n(v.opening), currency: v.currency, notes: v.notes, world } }];
-    case 'card': return [{ col: 'cards', item: { name: v.name || 'Card', kind: v.kind, last4: v.last4, limit: n(v.limit), statementDay: n(v.statementDay), dueDay: n(v.dueDay), accountId: v.accountId || undefined } }];
-    case 'loan': return [{ col: 'loans', item: { name: v.name || 'Loan', type: v.type, lender: v.lender, principal: n(v.principal), rate: n(v.rate), tenureMonths: n(v.tenureMonths), startDate: v.startDate, world } }];
+    case 'account':
+      if (!hasCapability(state, 'accounts')) return [];
+      return [{ col: 'accounts', item: { name: v.name || 'Account', type: v.type, institution: v.institution, opening: n(v.opening), currency: v.currency, notes: v.notes, world } }];
+    case 'card':
+      if (!hasCapability(state, 'cards')) return [];
+      return [{ col: 'cards', item: { name: v.name || 'Card', kind: v.kind, last4: v.last4, limit: n(v.limit), statementDay: n(v.statementDay), dueDay: n(v.dueDay), accountId: v.accountId || undefined } }];
+    case 'loan':
+      if (!hasCapability(state, 'loans')) return [];
+      return [{ col: 'loans', item: { name: v.name || 'Loan', type: v.type, lender: v.lender, principal: n(v.principal), rate: n(v.rate), tenureMonths: n(v.tenureMonths), startDate: v.startDate, world } }];
     case 'goal': {
       const months = Math.max(1, Math.round((parseDate(v.targetDate).getTime() - today().getTime()) / (30.4 * 86400000)));
       return [{ col: 'goals', item: { name: v.name || 'Goal', kind: v.kind, target: n(v.target), current: n(v.current), targetDate: v.targetDate, monthly: n(v.monthly) || Math.ceil((n(v.target) - n(v.current)) / months / 100) * 100, world } }];
@@ -67,8 +73,9 @@ function toOps(type: string, v: Record<string, any>, state: AppState) {
 
 export function AddFlow({ initial, onClose, onDone }: { initial: string | null; onClose: () => void; onDone?: (msg: string) => void }) {
   const { state, dispatch } = useStore();
-  const [type, setType] = useState<string | null>(initial || null);
   const types = getTypes(state);
+  const initialType = initial && types.some((t) => t.k === initial) ? initial : null;
+  const [type, setType] = useState<string | null>(initialType);
   const meta = types.find((t) => t.k === type);
   const ask = useAI();
   const [nl, setNl] = useState('');

@@ -71,6 +71,19 @@ export default function App() {
 
   const hasBiz = hasCapability(state, 'business');
   
+  // Guard current page against missing capabilities
+  const isBusinessAllowed = hasBiz;
+  const isAccountsAllowed = hasCapability(state, 'accounts');
+  const isCardsAllowed = hasCapability(state, 'cards') && state.world === 'personal';
+  const isLoansAllowed = hasCapability(state, 'loans');
+
+  const activePage: Page = 
+    (page === 'business' && !isBusinessAllowed) ? 'home' :
+    (page === 'accounts' && !isAccountsAllowed) ? 'home' :
+    (page === 'cards' && !isCardsAllowed) ? 'home' :
+    (page === 'loans' && !isLoansAllowed) ? 'home' :
+    page;
+  
   const NAV_GROUPS = [
     {
       label: 'Main',
@@ -132,7 +145,7 @@ export default function App() {
               <div key={group.label} className="flex flex-col gap-1">
                 <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-foreground-subtle">{group.label}</div>
                 {group.items.map((n) => {
-                  const on = page === n.id;
+                  const on = activePage === n.id;
                   return (
                     <button key={n.id} onClick={() => setPage(n.id)} aria-current={on ? 'page' : undefined}
                       className={cn('group relative flex h-[34px] items-center gap-2.5 rounded-md px-2 text-[13.5px] font-medium transition-colors',
@@ -193,23 +206,23 @@ export default function App() {
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pb-16 pt-8 max-md:px-4 max-md:pt-6 max-lg:pb-[calc(96px+env(safe-area-inset-bottom))]" key={page + state.world}>
-          {page === 'home' && <HomePage go={(p) => setPage(p as Page)} openAdd={openAdd} openPalette={() => setCmd(true)} openItem={openItem} />}
-          {page === 'activity' && <ActivityPage openAdd={openAdd} />}
-          {page === 'plans' && <PlansPage openAdd={openAdd} openItem={openItem} />}
-          {page === 'trips' && <PlansPage openAdd={openAdd} openItem={openItem} initialTab="trips" />}
-          {['accounts', 'cards', 'loans', 'subscriptions'].includes(page) && <ManagePage tab={page} openAdd={openAdd} openItem={openItem} />}
-          {page === 'business' && <BusinessPage openAdd={openAdd} />}
+        <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pb-16 pt-8 max-md:px-4 max-md:pt-6 max-lg:pb-[calc(96px+env(safe-area-inset-bottom))]" key={activePage + state.world}>
+          {activePage === 'home' && <HomePage go={(p) => setPage(p as Page)} openAdd={openAdd} openPalette={() => setCmd(true)} openItem={openItem} />}
+          {activePage === 'activity' && <ActivityPage openAdd={openAdd} />}
+          {activePage === 'plans' && <PlansPage openAdd={openAdd} openItem={openItem} />}
+          {activePage === 'trips' && <PlansPage openAdd={openAdd} openItem={openItem} initialTab="trips" />}
+          {['accounts', 'cards', 'loans', 'subscriptions'].includes(activePage) && <ManagePage tab={activePage} openAdd={openAdd} openItem={openItem} />}
+          {activePage === 'business' && <BusinessPage openAdd={openAdd} />}
         </main>
 
         {/* ---------- Bottom navigation (mobile/tablet) ---------- */}
         <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/85 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
           <div className="mx-auto flex h-16 max-w-[560px] items-stretch px-2">
-            {MOBILE_NAV.slice(0, 2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
+            {MOBILE_NAV.slice(0, 2).map((n) => <TabItem key={n.id} n={n} on={activePage === n.id} onClick={() => setPage(n.id)} />)}
             <div className="flex flex-1 items-center justify-center">
               <button onClick={() => openAdd()} aria-label="Add" className="grid size-11 place-items-center rounded-full bg-inverse text-inverse-foreground shadow-pop transition-transform active:scale-95"><Plus className="size-5" /></button>
             </div>
-            {MOBILE_NAV.slice(2).map((n) => <TabItem key={n.id} n={n} on={page === n.id} onClick={() => setPage(n.id)} />)}
+            {MOBILE_NAV.slice(2).map((n) => <TabItem key={n.id} n={n} on={activePage === n.id} onClick={() => setPage(n.id)} />)}
             {MOBILE_NAV.length === 3 && <div className="flex-1" />}
           </div>
         </nav>

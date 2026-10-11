@@ -341,14 +341,32 @@ export function localInterpret(text: string, state: AppState): AIResult {
     const category = isExp ? catOf(t) : /freelance|client/.test(t) ? 'Freelance' : world === 'business' ? 'Revenue' : 'Other income';
     const item = { type, amount: amt, category, date, accountId: acc?.id, cardId: card?.id, note: cap(what.trim()), world, tags: [], tripId: tripMatch?.id };
     const cm = monthSummary(state, mkey(now), world);
+
+    // Safety checks: idempotency / duplicate, high-value threshold, and ambiguous multiple amounts
+    const isDup = state.transactions.slice(-5).some((tx) => tx.amount === amt && tx.type === type && tx.date === date && tx.world === world);
+    const isHighValue = amt >= 100000;
+    const isAmbiguous = nums.length > 1;
+    const shouldAutoApply = !isDup && !isHighValue && !isAmbiguous;
+
+    let summaryText = type === 'expense'
+      ? `Logged under ${category}${card ? ` on ${card.name}` : acc ? ` from ${acc.name}` : ''}${tripMatch ? `, part of your ${tripMatch.destination} trip` : ''}. ${category} this month: ${money((cm.byCategory[category] || 0) + amt)}.`
+      : `Added to ${acc?.name || 'your account'}. Income this month: ${money(cm.income + amt)}.`;
+
+    if (isDup) {
+      summaryText = `Possible duplicate: A similar ${type} of ${money(amt)} was already logged recently. Confirm below if this is a separate transaction.`;
+    } else if (isHighValue) {
+      summaryText += ` (High-value transaction requires confirmation)`;
+    } else if (isAmbiguous) {
+      summaryText += ` (Multiple amounts detected; please verify before confirming)`;
+    }
+
     return resp({
       kind: 'action', title: `${type === 'expense' ? '−' : '+'}${money(amt)} · ${item.note}`,
-      summary: type === 'expense'
-        ? `Logged under ${category}${card ? ` on ${card.name}` : acc ? ` from ${acc.name}` : ''}${tripMatch ? `, part of your ${tripMatch.destination} trip` : ''}. ${category} this month: ${money((cm.byCategory[category] || 0) + amt)}.`
-        : `Added to ${acc?.name || 'your account'}. Income this month: ${money(cm.income + amt)}.`,
+      summary: summaryText,
+      tone: isDup ? 'neg' : isHighValue ? 'neutral' : undefined,
       metrics: [{ label: 'Category', value: category }, { label: 'Date', value: date === ymd(now) ? 'Today' : 'Yesterday' }, { label: 'Account', value: card?.name || acc?.name || '—' }],
       actions: [{ label: type === 'expense' ? 'Add expense' : 'Add income', ops: [add('transactions', item)] }],
-      autoApply: true,
+      autoApply: shouldAutoApply,
     });
   }
 

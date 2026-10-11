@@ -29,8 +29,24 @@ export function validateItem(col: string, item: Record<string, unknown>) {
 
   // Numbers
   ['amount', 'target', 'current', 'monthly', 'principal', 'rate', 'opening', 'limit', 'tenureMonths', 'day', 'statementDay', 'dueDay'].forEach(k => {
-    if (k in out) out[k] = safeNum(out[k]) ?? 0;
+    if (k in out) {
+      const isOpening = k === 'opening';
+      out[k] = safeNum(out[k], isOpening) ?? 0;
+    }
   });
+
+  if ('day' in out && typeof out.day === 'number') {
+    out.day = Math.max(1, Math.min(31, Math.round(out.day)));
+  }
+  if ('statementDay' in out && typeof out.statementDay === 'number') {
+    out.statementDay = Math.max(1, Math.min(28, Math.round(out.statementDay)));
+  }
+  if ('dueDay' in out && typeof out.dueDay === 'number') {
+    out.dueDay = Math.max(1, Math.min(28, Math.round(out.dueDay)));
+  }
+  if ('tenureMonths' in out && typeof out.tenureMonths === 'number') {
+    out.tenureMonths = Math.max(1, Math.round(out.tenureMonths));
+  }
 
   // Dates
   ['date', 'startDate', 'targetDate', 'start', 'end', 'due'].forEach(k => {

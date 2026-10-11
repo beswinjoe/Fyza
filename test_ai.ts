@@ -50,4 +50,25 @@ const r2 = tools.addTransaction(dupState, 500, 'Food', 'expense', '2026-10-15', 
 assert.equal(r2.autoApply, false); // autoApply is blocked on duplicate
 assert.match(r2.summary, /similar transaction was recently added/);
 
+// P. localInterpret safety: high-value threshold
+import { localInterpret } from './src/engine/ai';
+const sHigh = getEmptyState();
+const rHigh = localInterpret('I spent 150000 on a luxury watch', sHigh);
+assert.equal(rHigh.autoApply, false, 'High value transaction >= 100k must not autoApply');
+assert.match(rHigh.summary, /High-value transaction requires confirmation/);
+
+// Q. localInterpret safety: duplicate detection
+const sDupLocal = getEmptyState();
+const rLocal1 = localInterpret('I spent 850 on dinner', sDupLocal);
+assert.equal(rLocal1.autoApply, true);
+sDupLocal.transactions.push((rLocal1.actions![0].ops[0] as any).item as any);
+const rLocal2 = localInterpret('I spent 850 on dinner', sDupLocal);
+assert.equal(rLocal2.autoApply, false, 'Duplicate localInterpret must require confirmation');
+assert.match(rLocal2.summary, /Possible duplicate/);
+
+// R. localInterpret safety: ambiguous multiple amounts
+const sAmb = getEmptyState();
+const rAmb = localInterpret('I spent 500 on dinner and 200 on taxi', sAmb);
+assert.equal(rAmb.autoApply, false, 'Multiple amounts must require confirmation');
+
 console.log('AI tooling tests passed!');

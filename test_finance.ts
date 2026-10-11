@@ -1,8 +1,7 @@
 import { strict as assert } from 'assert';
 import { 
   accountBalance, available, monthSummary, forecast, 
-  loanStats, emi, goalStats, tripTotal, tripSpent, cardStats, 
-  studentCycle, upcoming 
+  loanStats, emi, goalStats, tripTotal, tripSpent, cardStats 
 } from './src/engine/finance';
 import { monthLabel } from './src/engine/format';
 import { AppState } from './src/types/app';
@@ -192,5 +191,28 @@ assertClose(f16[0].goals, 400); // goals are fully evaluated for the month
 assertClose(f16[1].income, 5000);
 assertClose(f16[1].recurring, 1500);
 assertClose(f16[1].goals, 400);
+
+// 17. Forecast Reconciliation Invariants
+for (let i = 0; i < f16.length; i++) {
+  assertClose(f16[i].openingBalance + f16[i].net, f16[i].balance, 0.001, `Month ${i} net reconciliation`);
+  if (i > 0) {
+    assertClose(f16[i].openingBalance, f16[i - 1].balance, 0.001, `Month ${i} opening balance continuity`);
+  }
+  assert.ok(Number.isFinite(f16[i].balance), `Month ${i} balance must be finite`);
+  assert.ok(!Number.isNaN(f16[i].balance), `Month ${i} balance cannot be NaN`);
+}
+
+// 18. Scenario Reproducibility & Isolation
+const scDef = { incomeLoss: 2, variablePct: -0.1 };
+const scRun1 = forecast(s16, 'personal', 6, scDef, NOW);
+const scRun2 = forecast(s16, 'personal', 6, scDef, NOW);
+assert.deepEqual(scRun1.map(r => r.balance), scRun2.map(r => r.balance), 'Forecast scenario must be deterministic and reproducible');
+
+// 19. Goal Completion Invariant
+const s19 = getEmptyState();
+s19.goals.push({ id: 'g_comp', name: 'Completed Goal', kind: 'savings', target: 1000, current: 1000, monthly: 200, world: 'personal' });
+const f19 = forecast(s19, 'personal', 3, {}, NOW);
+assertClose(f19[0].goals, 0, 0.01, 'Completed goal must not allocate future monthly savings');
+assertClose(f19[1].goals, 0, 0.01, 'Completed goal must not allocate future monthly savings in month 1');
 
 console.log('All finance tests passed!');

@@ -2,7 +2,7 @@ import { money } from './currency';
 // Financial engine — pure functions over the state model. No UI code here.
 import { today, mkey, parseDate, addMonths, daysInMonth, daysBetween, monthsBetween, monthLabel, ymd, addDays } from './format';
 import { AppState } from '../types/app';
-import { World, Account, Card, Loan, Transaction, Trip, Goal, ScenarioDef } from '../types/finance';
+import { World, Account, Card, Loan, Transaction, Trip, Goal, ScenarioDef, ForecastRow } from '../types/finance';
 
 export const W = (x: { world?: World }): World => x.world || 'personal';
 export const inWorld = (world: World) => (x: { world?: World }) => W(x) === world;
@@ -17,6 +17,11 @@ export function emi(P: number, rate: number, n: number): number {
   return (P * r * f) / (f - 1);
 }
 
+/**
+ * Calculates estimated amortization schedule and balance based on contract parameters.
+ * Note: Calculated estimate based on standard amortization schedule;
+ * lender reported actual balances may vary slightly due to rounding or payment timing.
+ */
 export function loanStats(loan: Loan, now = today()) {
   const P = +loan.principal, n = +loan.tenureMonths, r = +loan.rate / 1200;
   if (!Number.isFinite(P) || !Number.isFinite(n) || !Number.isFinite(r) || n <= 0) throw new Error("Invalid loan inputs");
@@ -41,6 +46,7 @@ export function loanStats(loan: Loan, now = today()) {
     interestRemaining: totalInterest - interestPaid, totalInterest,
     totalPayable: P + totalInterest, progress: P > 0 ? Math.min(1, Math.max(0, (P - balance) / P)) : 1,
     nextDue: ymd(nextDue), endDate: ymd(endDate), schedule, active: paid < n,
+    isEstimated: true,
   };
 }
 
@@ -187,82 +193,144 @@ export function upcoming(state: AppState, world: World, days = 30, now = today()
 }
 
 /* ---------- Forecast ---------- */
-export function forecast(state: AppState, world: World, months = 6, sc: ScenarioDef = {}, now = today()) {
-  let bal = available(state, world);
-  const variableBase = baselineVariable(state, world, now);
-  const rows = [];
-  const baseIncome = state.recurring.filter(inWorld(world)).filter((r) => r.type === 'income').reduce((s, r) => s + r.amount, 0);
+export function forecast(state: AppState, world: World, months = 6, sc: ScenarioDef = {}, now = today()): ForecastRow[] {
+  const currentCash = available(state, world);
+  const curKey = mkey(now);
+  const curSummary = monthSummary(state, curKey, world);
+  const curTx = monthTx(state, curKey, world);
+  const paidRecurring = new Set(curTx.map((t) => t.recurringId).filter(Boolean));
+  const paidLoans = new Set(curTx.map((t) => t.loanId).filter(Boolean));
+
+  // Actual net so far in the current month (including cross-world transfers)
+  const actualIncomeM0 = curSummary.income;
+  const actualExpenseM0 = curSummary.expense;
+  const actualNetM0 = actualIncomeM0 - actualExpenseM0 + (curSummary.transferIn || 0) - (curSummary.transferOut || 0);
+
+  // Opening balance of the workspace at start of current month (day 1 before this month's activity)
+  const openingBalM0 = currentCash - actualNetM0;
+
+  const variableBase = Math.max(0, baselineVariable(state, world, now));
+  const baseIncome = state.recurring.filter(inWorld(world)).filter((r) => r.type === 'income').reduce((s, r) => s + Math.max(0, +r.amount || 0), 0);
+
+  let runningBal = openingBalM0;
+  const rows: ForecastRow[] = [];
+
   for (let i = 0; i < months; i++) {
     const m = addMonths(now, i), key = mkey(m);
     const dim = daysInMonth(m.getFullYear(), m.getMonth());
-    const remFrac = i === 0 ? (dim - now.getDate()) / dim : 1;
+    const remDays = Math.max(0, dim - now.getDate());
+    const remFrac = i === 0 ? (dim > 0 ? remDays / dim : 0) : 1;
+
     let income = 0, recurringExp = 0, emis = 0, trips = 0, oneTime = 0, goals = 0;
-    const tripList = [];
-    const goalList = [];
+    const tripList: Array<{ name: string; amount: number }> = [];
+    const goalList: Array<{ name: string; amount: number }> = [];
+
+    // Recurring items
     for (const r of state.recurring.filter(inWorld(world))) {
-      if (i === 0 && (+(r.day || 1)) <= now.getDate()) continue;
-      if (r.type === 'income') income += r.amount; else recurringExp += r.amount;
+      const rAmt = Math.max(0, +r.amount || 0);
+      const rDay = +(r.day || 1);
+      if (i === 0 && (paidRecurring.has(r.id) || rDay <= now.getDate())) continue;
+      if (r.type === 'income') income += rAmt;
+      else recurringExp += rAmt;
     }
+
+    // Loans
     for (const l of state.loans.filter(inWorld(world))) {
       const st = parseDate(l.startDate);
       const idx = (m.getFullYear() - st.getFullYear()) * 12 + m.getMonth() - st.getMonth();
-      if (idx >= 1 && idx <= +l.tenureMonths && (i > 0 || st.getDate() > now.getDate())) emis += emi(+l.principal, +l.rate, +l.tenureMonths);
+      const emiVal = Math.max(0, emi(+l.principal || 0, +l.rate || 0, +l.tenureMonths || 1));
+      if (idx >= 1 && idx <= +l.tenureMonths) {
+        if (i === 0 && (paidLoans.has(l.id) || st.getDate() <= now.getDate())) continue;
+        emis += emiVal;
+      }
     }
+
+    // Trips
     for (const t of state.trips.filter(inWorld(world))) {
       const tStart = parseDate(t.start);
       const tEnd = parseDate(t.end);
       if (tEnd < now) continue;
-      
+
       const left = Math.max(0, tripTotal(t) - tripSpent(state, t));
       if (left === 0) continue;
-      
+
       const futureTripStart = tStart > now ? tStart : now;
       const totalFutureDays = daysBetween(futureTripStart, tEnd) + 1;
       if (totalFutureDays <= 0) continue;
-      
+
       const monthStart = i === 0 ? now : new Date(m.getFullYear(), m.getMonth(), 1);
       const monthEnd = new Date(m.getFullYear(), m.getMonth() + 1, 0);
-      
+
       const overlapStart = futureTripStart > monthStart ? futureTripStart : monthStart;
       const overlapEnd = tEnd < monthEnd ? tEnd : monthEnd;
       const overlapDays = daysBetween(overlapStart, overlapEnd) + 1;
-      
+
       if (overlapDays > 0) {
         const amount = left * (overlapDays / totalFutureDays);
         trips += amount;
         tripList.push({ name: t.destination, amount });
       }
     }
+
+    // Goals: only allocate savings if goal still has balance remaining and hasn't completed in earlier forecast months
     for (const g of state.goals.filter(inWorld(world))) {
       const stats = goalStats(g, now);
-      if (stats.left > 0 && stats.monthsNeeded > 0) {
-        goals += (g.monthly || stats.required || 0);
-        goalList.push({ name: g.name, amount: (g.monthly || stats.required || 0) });
+      if (stats.left > 0 && stats.monthsNeeded > 0 && i < stats.monthsNeeded) {
+        const gMonthly = Math.max(0, +g.monthly || stats.required || 0);
+        goals += gMonthly;
+        goalList.push({ name: g.name, amount: gMonthly });
       }
     }
+
     let variable = variableBase * remFrac;
-    
+
+    // Scenarios
     if (i >= 1 || remFrac > 0) {
-      if (sc.incomeDelta) income += sc.incomeDelta * (i === 0 ? 0 : 1);
-      if (sc.revenuePct) income += (baseIncome * sc.revenuePct) * (i === 0 ? 0 : 1);
-      if (sc.expenseDelta) recurringExp += sc.expenseDelta * (i === 0 ? 0 : 1);
+      if (sc.incomeDelta) income += (sc.incomeDelta || 0) * (i === 0 ? 0 : 1);
+      if (sc.revenuePct) income += (baseIncome * (sc.revenuePct || 0)) * (i === 0 ? 0 : 1);
+      if (sc.expenseDelta) recurringExp += (sc.expenseDelta || 0) * (i === 0 ? 0 : 1);
       if (sc.incomeLoss && i >= 1 && i <= sc.incomeLoss) income = 0;
       if (sc.oneTime && i === (sc.oneTimeMonth || 0)) oneTime += sc.oneTime;
-      variable *= sc.variablePct ? 1 + sc.variablePct : 1;
+      if (sc.variablePct) variable *= Math.max(0, 1 + sc.variablePct);
     }
+
     const saved = (sc.monthlySave && i >= 1 ? sc.monthlySave : 0) + goals;
-    const expense = recurringExp + emis + trips + variable + oneTime;
-    const net = income - expense;
-    bal += net;
-    let actualIncome = 0, actualExpense = 0;
-    if (i === 0) { const s = monthSummary(state, key, world); actualIncome = s.income; actualExpense = s.expense; }
-    const normal = recurringExp + emis + variable + (i === 0 ? actualExpense : 0);
+    const projectedExp = recurringExp + emis + trips + variable + oneTime;
+
+    const actualInc = i === 0 ? actualIncomeM0 : 0;
+    const actualExp = i === 0 ? actualExpenseM0 : 0;
+
+    const totalMonthIncome = income + actualInc;
+    const totalMonthExpense = projectedExp + actualExp;
+    const monthlyNet = totalMonthIncome - totalMonthExpense;
+
+    const rowOpening = runningBal;
+    runningBal += monthlyNet;
+
+    const normal = recurringExp + emis + variable + (i === 0 ? actualExp : 0);
+
     rows.push({
-      key, label: monthLabel(key), income: income + actualIncome, expense: expense + actualExpense,
-      recurring: recurringExp, emis, trips, tripList, goals, goalList, variable, oneTime, saved, net: income + actualIncome - (expense + actualExpense),
-      balance: bal, normal, pressure: expense + actualExpense > (income + actualIncome) * 0.95,
+      key,
+      label: monthLabel(key),
+      openingBalance: rowOpening,
+      income: totalMonthIncome,
+      expense: totalMonthExpense,
+      recurring: recurringExp,
+      emis,
+      trips,
+      tripList,
+      goals,
+      goalList,
+      variable,
+      oneTime,
+      saved,
+      net: monthlyNet,
+      balance: runningBal,
+      normal,
+      pressure: totalMonthExpense > totalMonthIncome * 0.95,
     });
   }
+
   return rows;
 }
 

@@ -12,11 +12,34 @@ export function useAI() {
   const { state, dispatch } = useStore();
   const ask = async (text: string) => {
     const r = await interpret(text, state);
+    const ops: Action[] = [];
     if (r.autoApply && r.actions?.[0]) {
-      dispatch({ type: 'batch', ops: r.actions[0].ops as Action[] });
+      const action = r.actions[0];
+      const undoOps: Action[] = [];
+      for (const op of action.ops) {
+        if (op.type === 'add') {
+          undoOps.push({ type: 'remove', col: op.col, id: (op.item as { id: string }).id });
+        } else if (op.type === 'update') {
+          const colItems = (state[op.col] as Array<{ id: string }>) || [];
+          const existing = colItems.find((x) => x.id === op.id);
+          if (existing) {
+            undoOps.push({ type: 'update', col: op.col, id: op.id, patch: { ...existing } });
+          }
+        } else if (op.type === 'remove') {
+          const colItems = (state[op.col] as Array<{ id: string }>) || [];
+          const existing = colItems.find((x) => x.id === op.id);
+          if (existing) {
+            undoOps.push({ type: 'add', col: op.col, item: { ...existing } });
+          }
+        }
+      }
+      undoOps.reverse();
+      r.undoOps = undoOps as unknown as AIAction[];
       r.applied = 0;
+      ops.push(...(action.ops as Action[]));
     }
-    dispatch({ type: 'set', patch: { aiHistory: [...state.aiHistory.slice(-30), r] } });
+    ops.push({ type: 'add', col: 'aiHistory', item: r as unknown as Record<string, unknown> });
+    dispatch({ type: 'batch', ops });
     return r;
   };
   return ask;

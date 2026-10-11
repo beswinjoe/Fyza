@@ -46,8 +46,22 @@ export function hydrate(s: any): AppState {
     trips: Array.isArray(s.trips) ? s.trips.map((x: any) => safeMap('trips', x)).filter(Boolean) as any[] : [],
     invoices: Array.isArray(s.invoices) ? s.invoices.map((x: any) => safeMap('invoices', x)).filter(Boolean) as any[] : [],
     scenarios: Array.isArray(s.scenarios) ? s.scenarios.map((x: any) => safeMap('scenarios', x)).filter(Boolean) as any[] : [],
-    aiHistory: Array.isArray(s.aiHistory) ? s.aiHistory : [],
-    categories: Array.isArray(s.categories) ? s.categories : base.categories,
+    aiHistory: Array.isArray(s.aiHistory)
+      ? s.aiHistory.filter((x: any) =>
+          x && typeof x === 'object' &&
+          typeof x.id === 'string' &&
+          typeof x.title === 'string' &&
+          typeof x.summary === 'string' &&
+          typeof x.at === 'number' && Number.isFinite(x.at) &&
+          ['answer', 'action', 'scenario'].includes(x.kind)
+        )
+      : [],
+    categories: Array.isArray(s.categories)
+      ? (() => {
+          const cleaned = Array.from(new Set(s.categories.filter((c: any) => typeof c === 'string' && c.trim().length > 0).map((c: string) => c.trim())));
+          return cleaned.length > 0 ? cleaned : base.categories;
+        })()
+      : base.categories,
   };
 }
 
@@ -67,11 +81,39 @@ export function migrate(parsed: any): PersistedEnvelope {
   // if (current.version === 3) { current = migrateV3toV4(current); }
   
   if (current.version !== CURRENT_VERSION) {
-    throw new Error(`Unsupported storage version: ${current.version}`);
+    throw new Error(`Unsupported storage version: ${current.version}. Current supported version is ${CURRENT_VERSION}.`);
   }
 
   current.data = hydrate(current.data);
   return current as PersistedEnvelope;
+}
+
+export const CORRUPTED_BACKUP_PREFIX = 'fyza.corrupted_backup_';
+
+export function listCorruptedBackups(): Array<{ key: string; date: string; raw: string }> {
+  if (typeof localStorage === 'undefined') return [];
+  const list: Array<{ key: string; date: string; raw: string }> = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(CORRUPTED_BACKUP_PREFIX)) {
+        const raw = localStorage.getItem(k) || '';
+        const ts = parseInt(k.replace(CORRUPTED_BACKUP_PREFIX, ''), 10);
+        list.push({
+          key: k,
+          date: isNaN(ts) ? 'Unknown date' : new Date(ts).toLocaleString(),
+          raw,
+        });
+      }
+    }
+  } catch {}
+  return list.sort((a, b) => b.key.localeCompare(a.key));
+}
+
+export function clearCorruptedBackup(key: string): void {
+  if (typeof localStorage !== 'undefined' && key.startsWith(CORRUPTED_BACKUP_PREFIX)) {
+    try { localStorage.removeItem(key); } catch {}
+  }
 }
 
 export function deserializeState(raw: string | null): PersistedEnvelope {
@@ -80,10 +122,16 @@ export function deserializeState(raw: string | null): PersistedEnvelope {
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object') return createEmptyEnvelope();
     return migrate(parsed);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Storage corrupted. Attempting recovery.", err);
-    if (raw) {
-       try { localStorage.setItem('fyza.corrupted_backup_' + Date.now(), raw); } catch {}
+    if (raw && typeof localStorage !== 'undefined') {
+       try {
+         const backupKey = CORRUPTED_BACKUP_PREFIX + Date.now();
+         localStorage.setItem(backupKey, raw);
+         if (typeof window !== 'undefined') {
+           window.dispatchEvent(new CustomEvent('fyza:corrupted_backup_created', { detail: { key: backupKey, error: err?.message } }));
+         }
+       } catch {}
     }
     return createEmptyEnvelope();
   }
@@ -117,12 +165,21 @@ export function loadState(): PersistedEnvelope {
   }
 }
 
-export function saveState(envelope: PersistedEnvelope) {
+export function saveState(envelope: PersistedEnvelope): { success: boolean; error?: string } {
   try {
     const raw = serializeState(envelope);
-    if (typeof localStorage !== 'undefined') localStorage.setItem(STORAGE_KEY, raw);
-  } catch (e) {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY, raw);
+    }
+    return { success: true };
+  } catch (e: any) {
     console.error("Failed to save state to localStorage", e);
+    const isQuota = e?.name === 'QuotaExceededError' || e?.code === 22 || e?.code === 1014;
+    const msg = isQuota ? 'Storage quota exceeded. Your changes cannot be saved locally.' : (e?.message || 'Storage write failed');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('fyza:persistence_error', { detail: { error: msg, isQuota } }));
+    }
+    return { success: false, error: msg };
   }
 }
 
@@ -131,12 +188,17 @@ export function exportState(envelope: PersistedEnvelope): string {
 }
 
 export function importState(raw: string): PersistedEnvelope {
-  if (!raw) throw new Error("Import payload is empty");
-  const parsed = JSON.parse(raw);
-  if (!parsed || typeof parsed !== 'object') throw new Error("Invalid import payload format");
+  if (!raw || !raw.trim()) throw new Error("Import payload is empty");
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (e) {
+    throw new Error("Invalid JSON: File is not valid JSON.");
+  }
+  if (!parsed || typeof parsed !== 'object') throw new Error("Invalid import payload format: expected object.");
   const env = migrate(parsed);
   if (!env || !env.workspaceId || !env.data || env.version !== CURRENT_VERSION) {
-    throw new Error("Invalid import payload content");
+    throw new Error("Invalid import payload content.");
   }
   return env;
 }

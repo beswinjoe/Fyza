@@ -115,3 +115,24 @@ export interface Scenario {
   world: World;
   created?: string;
 }
+
+export interface ForecastRow {
+  key: string;
+  label: string;
+  openingBalance: number;
+  income: number;
+  expense: number;
+  recurring: number;
+  emis: number;
+  trips: number;
+  tripList: Array<{ name: string; amount: number }>;
+  goals: number;
+  goalList: Array<{ name: string; amount: number }>;
+  variable: number;
+  oneTime: number;
+  saved: number;
+  net: number;
+  balance: number;
+  normal: number;
+  pressure: boolean;
+}

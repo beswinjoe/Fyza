@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ArrowRight, LogOut, Sun, Moon, Monitor } from 'lucide-react';
+import { ArrowRight, LogOut, Sun, Moon, Monitor, Download, Upload, AlertTriangle } from 'lucide-react';
 import { useStore } from '../engine/store';
 import { findCurrency, symbolOf } from '../engine/currency';
 import { CurrencyPicker } from './CurrencyPicker';
 import { Button, Drawer, Input, cn } from './ui';
 import { getStoredPreference, setTheme, type ThemePreference } from '../engine/theme';
+import { exportState, importState, listCorruptedBackups, clearCorruptedBackup, CURRENT_VERSION } from '../engine/persistence';
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-2 mt-8 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle first:mt-2">{children}</div>
@@ -22,6 +23,8 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   const [picking, setPicking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
   const [themePref, setThemePref] = useState<ThemePreference>(getStoredPreference);
+  const [importErr, setImportErr] = useState<string | null>(null);
+  const [backups, setBackups] = useState(() => listCorruptedBackups());
 
   const records = state.transactions.length + state.recurring.length + state.goals.length + state.trips.length + state.loans.length + state.accounts.length + state.cards.length + state.invoices.length;
   const c = findCurrency(state.currency);
@@ -39,6 +42,50 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
   const saveName = () => { if (name.trim() && name.trim() !== state.user.name) dispatch({ type: 'set', patch: { user: { ...state.user, name: name.trim() } } }); };
   const reset = () => { if (window.confirm('Reset workspace? This permanently clears all Fyza data on this device.')) { dispatch({ type: 'reset' }); onClose(); } };
+
+  const handleExport = () => {
+    try {
+      const envelope = {
+        version: CURRENT_VERSION,
+        workspaceId: 'ws_export_' + Date.now().toString(36),
+        updatedAt: new Date().toISOString(),
+        data: state,
+      };
+      const json = exportState(envelope);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fyza-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      alert('Export failed: ' + (e?.message || 'Unknown error'));
+    }
+  };
+
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportErr(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const env = importState(text);
+        if (window.confirm(`Importing backup will replace current workspace data (${records} records). Continue?`)) {
+          dispatch({ type: 'set', patch: env.data });
+          onClose();
+        }
+      } catch (err: any) {
+        setImportErr(err?.message || 'Failed to import file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const handleTheme = (pref: ThemePreference) => {
     setThemePref(pref);
@@ -104,13 +151,78 @@ export default function Settings({ onClose }: { onClose: () => void }) {
         </>
       )}
 
-      <Label>Data</Label>
-      <div className="flex items-center justify-between border-y border-border py-4">
-        <div>
-          <div className="text-[15px] font-medium">Stored on this device</div>
-          <div className="text-[13px] text-foreground-subtle">{records} record{records === 1 ? '' : 's'} · no bank connection</div>
+      <Label>Data & Backup</Label>
+      <div className="border-y border-border py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[15px] font-medium">Stored on this device</div>
+            <div className="text-[13px] text-foreground-subtle">{records} record{records === 1 ? '' : 's'} · no bank connection</div>
+          </div>
         </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" onClick={handleExport} className="gap-2">
+            <Download className="size-4" /> Export backup (JSON)
+          </Button>
+          <label className="inline-flex cursor-pointer items-center">
+            <input type="file" accept=".json,application/json" onChange={handleImportFile} className="sr-only" />
+            <span className="inline-flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-1.5 text-[13px] font-medium text-foreground hover:bg-surface-muted transition-colors">
+              <Upload className="size-4" /> Import backup
+            </span>
+          </label>
+        </div>
+
+        {importErr && (
+          <div className="mt-3 flex items-start gap-2 rounded-lg bg-negative/10 p-3 text-[12px] text-negative">
+            <AlertTriangle className="size-4 shrink-0 mt-0.5" />
+            <span>{importErr}</span>
+          </div>
+        )}
+
+        {backups.length > 0 && (
+          <div className="mt-4 rounded-xl border border-warning/30 bg-warning/5 p-3">
+            <div className="flex items-center gap-2 text-[13px] font-medium text-warning">
+              <AlertTriangle className="size-4" /> Preserved corrupted backups ({backups.length})
+            </div>
+            <p className="mt-1 text-[12px] text-foreground-subtle">
+              Fyza preserved previous unparseable data before creating a clean workspace. You can export or clear these backups:
+            </p>
+            <div className="mt-2 space-y-2">
+              {backups.map((b) => (
+                <div key={b.key} className="flex items-center justify-between rounded-lg bg-surface/50 p-2 text-[12px]">
+                  <span>{b.date}</span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        const blob = new Blob([b.raw], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `corrupted-${b.key}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="text-accent hover:underline"
+                    >
+                      Export
+                    </button>
+                    <button
+                      onClick={() => {
+                        clearCorruptedBackup(b.key);
+                        setBackups(listCorruptedBackups());
+                      }}
+                      className="text-foreground-subtle hover:text-negative"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
       <button onClick={reset} className="mt-4 text-[13px] font-medium text-negative/90 hover:text-negative">Reset workspace</button>
 
       <Label>Sign Out</Label>

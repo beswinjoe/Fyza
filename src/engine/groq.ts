@@ -1,6 +1,6 @@
 import Groq from 'groq-sdk';
 
-const apiKey = import.meta.env.VITE_GROQ_API_KEY;
+const apiKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_GROQ_API_KEY) || (typeof globalThis !== 'undefined' && (globalThis as any).process?.env?.VITE_GROQ_API_KEY);
 
 let ai: Groq | null = null;
 if (apiKey) {

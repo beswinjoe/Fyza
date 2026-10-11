@@ -3,6 +3,7 @@ import { useStore } from '../engine/store';
 import { money } from '../engine/format';
 import { accountBalance, cardStats, loanStats, inWorld } from '../engine/finance';
 import { Card, EmptyState, Row, RowMeta, Icon, Money, ACC_ICON, Button } from '../components/ui';
+import { hasCapability } from '../engine/capabilities';
 
 export default function ManagePage({ tab, openAdd, openItem }: { tab: string; openAdd: (t: string) => void; openItem: (t: string, id: string) => void }) {
   const { state } = useStore();
@@ -13,6 +14,8 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
   const loans = state.loans.filter(inWorld(world));
   const subs = state.recurring.filter(inWorld(world)).filter(r => r.type === 'expense');
 
+  const canAdd = tab === 'subscriptions' ? true : (tab === 'accounts' ? hasCapability(state, 'accounts') : tab === 'cards' ? hasCapability(state, 'cards') : tab === 'loans' ? hasCapability(state, 'loans') : true);
+
   return (
     <div className="mx-auto max-w-[800px] px-4 py-8 pb-24 sm:px-6 lg:px-8 animate-fade-in">
       <div className="mb-8 flex items-end justify-between max-md:mb-6">
@@ -20,13 +23,15 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
           <div className="mb-1.5 text-meta text-foreground-subtle capitalize">Manage</div>
           <h1 className="font-display text-page font-semibold text-foreground max-md:text-[26px] max-md:leading-8 capitalize">{tab}</h1>
         </div>
-        <Button variant="primary" size="sm" onClick={() => openAdd(tab === 'subscriptions' ? 'recurring' : tab.slice(0, -1))}><Plus /> Add {tab.slice(0, -1)}</Button>
+        {canAdd && <Button variant="primary" size="sm" onClick={() => openAdd(tab === 'subscriptions' ? 'recurring' : tab.slice(0, -1))}><Plus /> Add {tab.slice(0, -1)}</Button>}
       </div>
 
       <div className="flex flex-col gap-4">
         {tab === 'accounts' && (
           <Card className="p-2 sm:p-4">
-            {accs.length === 0 ? (
+            {!hasCapability(state, 'accounts') ? (
+              <EmptyState size="md" icon={Landmark} title="Accounts not enabled" description="Your current profile does not enable accounts. You can enable them in Settings or switch profiles." />
+            ) : accs.length === 0 ? (
               <EmptyState size="md" icon={Landmark} title="No accounts" description="Add cash, bank, or wallets." primaryAction={{ label: 'Add account', onClick: () => openAdd('account') }} />
             ) : accs.map((a) => (
               <Row key={a.id} onClick={() => openItem('account', a.id)} className="cursor-pointer hover:bg-surface-muted/50 rounded-lg">
@@ -40,7 +45,9 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
 
         {tab === 'cards' && (
           <Card className="p-2 sm:p-4">
-            {cards.length === 0 ? (
+            {!hasCapability(state, 'cards') || world !== 'personal' ? (
+              <EmptyState size="md" icon={CreditCard} title="Cards not enabled" description="Your current profile does not enable cards. You can enable them in Settings or switch profiles." />
+            ) : cards.length === 0 ? (
               <EmptyState size="md" icon={CreditCard} title="No cards" description="Add a credit or debit card." primaryAction={{ label: 'Add card', onClick: () => openAdd('card') }} />
             ) : cards.map((c) => {
               const s = cardStats(state, c);
@@ -57,7 +64,9 @@ export default function ManagePage({ tab, openAdd, openItem }: { tab: string; op
 
         {tab === 'loans' && (
           <Card className="p-2 sm:p-4">
-            {loans.length === 0 ? (
+            {!hasCapability(state, 'loans') ? (
+              <EmptyState size="md" icon={HandCoins} title="Loans not enabled" description="Your current profile does not enable loans. You can enable them in Settings or switch profiles." />
+            ) : loans.length === 0 ? (
               <EmptyState size="md" icon={HandCoins} title="No loans" description="Add a loan to track EMIs." primaryAction={{ label: 'Add loan', onClick: () => openAdd('loan') }} />
             ) : loans.map((l) => {
               const s = loanStats(l);

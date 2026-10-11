@@ -33,9 +33,35 @@ export function reducer(state: AppState, a: Action): AppState {
       const arr = state[a.col as keyof AppState] as { id: string }[];
       if (!Array.isArray(arr)) return state;
       let next = { ...state, [a.col]: arr.filter((x) => x.id !== a.id) };
-      // When removing a trip, unlink orphaned transactions (don't delete them — they're real spending)
+      // When removing an entity, unlink orphaned references (don't delete transactions — they're real spending history)
       if (a.col === 'trips') {
         next = { ...next, transactions: next.transactions.map((t) => t.tripId === a.id ? { ...t, tripId: undefined } : t) };
+      } else if (a.col === 'accounts') {
+        next = {
+          ...next,
+          cards: next.cards.map((c) => c.accountId === a.id ? { ...c, accountId: undefined } : c),
+          transactions: next.transactions.map((t) => ({
+            ...t,
+            accountId: t.accountId === a.id ? undefined : t.accountId,
+            fromAccountId: t.fromAccountId === a.id ? undefined : t.fromAccountId,
+            toAccountId: t.toAccountId === a.id ? undefined : t.toAccountId,
+          })),
+        };
+      } else if (a.col === 'cards') {
+        next = {
+          ...next,
+          transactions: next.transactions.map((t) => t.cardId === a.id ? { ...t, cardId: undefined } : t),
+        };
+      } else if (a.col === 'loans') {
+        next = {
+          ...next,
+          transactions: next.transactions.map((t) => t.loanId === a.id ? { ...t, loanId: undefined } : t),
+        };
+      } else if (a.col === 'recurring') {
+        next = {
+          ...next,
+          transactions: next.transactions.map((t) => t.recurringId === a.id ? { ...t, recurringId: undefined } : t),
+        };
       }
       return next;
     }
