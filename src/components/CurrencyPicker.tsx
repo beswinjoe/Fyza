@@ -13,14 +13,14 @@ export function CurrencyPicker({ value, onChange, className, maxHeight = 320 }: 
 
   return (
     <div className={className}>
-      <label className="flex h-11 items-center gap-2.5 border-b border-border-strong text-foreground-subtle focus-within:border-foreground">
+      <label className="flex h-11 items-center gap-2.5 border-b border-border-strong text-foreground-muted focus-within:border-foreground">
         <Search className="size-4 shrink-0" strokeWidth={1.75} />
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search currency"
           aria-label="Search currency"
-          className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-foreground-subtle"
+          className="w-full bg-transparent text-[15px] text-foreground outline-none placeholder:text-foreground-muted/60"
         />
       </label>
       <ul role="listbox" aria-label="Currency" className="mt-1 overflow-y-auto overscroll-contain" style={{ maxHeight }}>
@@ -32,17 +32,17 @@ export function CurrencyPicker({ value, onChange, className, maxHeight = 320 }: 
                 role="option"
                 aria-selected={on}
                 onClick={() => onChange(c.code)}
-                className={cn('group grid w-full grid-cols-[40px_minmax(0,1fr)_auto_20px] items-center gap-3 border-b border-border py-3 text-left transition-colors', on ? 'text-foreground' : 'text-foreground-muted hover:text-foreground')}
+                className={cn('group grid w-full grid-cols-[40px_minmax(0,1fr)_auto_20px] items-center gap-3 border-b border-border py-3 text-left transition-colors', on ? 'text-foreground font-semibold' : 'text-foreground-muted hover:text-foreground')}
               >
-                <span className="num text-[18px] font-medium text-foreground-subtle group-hover:text-foreground">{symbolOf(c.code)}</span>
+                <span className="num text-[18px] font-semibold text-foreground-muted group-hover:text-foreground">{symbolOf(c.code)}</span>
                 <span className="truncate text-[15px] font-medium">{c.name}</span>
-                <span className="num text-[12px] tracking-[0.12em] text-foreground-subtle">{c.code}</span>
+                <span className="num text-[12px] font-medium tracking-[0.12em] text-foreground-muted">{c.code}</span>
                 <span className="grid place-items-center">{on && <Check className="size-4 text-foreground" strokeWidth={2.5} />}</span>
               </button>
             </li>
           );
         })}
-        {list.length === 0 && <li className="py-6 text-[13px] text-foreground-subtle">No currency matches “{q}”.</li>}
+        {list.length === 0 && <li className="py-6 text-[13px] text-foreground-muted">No currency matches “{q}”.</li>}
       </ul>
     </div>
   );

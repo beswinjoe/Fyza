@@ -10,6 +10,7 @@ const suites = [
   { name: 'Atmosphere & Themes', file: 'test_atmosphere.ts' },
   { name: 'End-to-End Integration', file: 'test_integration.ts' },
   { name: 'Audit Hardening & Ledger', file: 'test_audit_hardening.ts' },
+  { name: 'Google Auth, Routing & Data Isolation', file: 'test_auth.ts' },
   { name: 'General Regressions', file: 'test_regression.ts' },
 ];
 

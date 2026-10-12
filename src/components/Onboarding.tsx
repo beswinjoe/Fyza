@@ -37,9 +37,12 @@ function PrimaryCTA({ children, disabled, onClick }: { children: React.ReactNode
   );
 }
 
+import { useAuth } from '../engine/auth';
+
 export default function Onboarding() {
+  const { user } = useAuth();
   const { dispatch } = useStore();
-  const [name, setName] = useState('');
+  const [name, setName] = useState(user?.displayName || '');
   const [sel, setSel] = useState(['personal']);
   const [currency, setCurrency] = useState('USD');
   const [step, setStep] = useState(0); // 0 welcome · 1 profiles · 2 currency · 3 name
@@ -47,7 +50,13 @@ export default function Onboarding() {
   const toggle = (id: string) => setSel((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
   const complete = () => {
-    dispatch({ type: 'seed', opts: { name, profiles: sel.length ? sel : ['personal'], currency } });
+    const finalName = name.trim() || user?.displayName || user?.email?.split('@')[0] || 'You';
+    dispatch({ type: 'seed', opts: { name: finalName, profiles: sel.length ? sel : ['personal'], currency } });
+  };
+
+  const skip = () => {
+    const finalName = name.trim() || user?.displayName || user?.email?.split('@')[0] || 'You';
+    dispatch({ type: 'seed', opts: { name: finalName, profiles: sel.length ? sel : ['personal'], currency } });
   };
 
   const cap = CAPTIONS[step];
@@ -85,23 +94,31 @@ export default function Onboarding() {
             <Logo className="size-10" />
             <span className="font-display text-[19px] font-semibold tracking-[-0.03em]">Fyza</span>
           </div>
-          {step > 0 && (
-            <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>
-              {[1, 2, 3].map((i) => (
-                <div key={i} className={cn('h-[3px] rounded-full transition-all duration-500', step >= i ? 'w-8 bg-foreground' : 'w-4 bg-border-strong')} />
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {step > 0 && (
+              <div className="flex gap-1.5" aria-label={`Step ${step} of 3`}>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className={cn('h-[3px] rounded-full transition-all duration-500', step >= i ? 'w-8 bg-foreground' : 'w-4 bg-border-strong')} />
+                ))}
+              </div>
+            )}
+            <button
+              onClick={skip}
+              className="text-[13px] font-semibold text-foreground-muted transition-colors hover:text-foreground"
+            >
+              Skip setup
+            </button>
+          </div>
         </header>
 
         <div key={step} className="flex flex-1 flex-col justify-center py-10 lg:py-0">
           {step === 0 && (
             <div className="stagger max-w-[520px]">
-              <h1 className="font-display text-[clamp(48px,7vw,96px)] font-semibold leading-[0.95] tracking-[-0.05em]">
+              <h1 className="font-display text-[clamp(48px,7vw,96px)] font-semibold leading-[0.95] tracking-[-0.05em] text-foreground">
                 Your money,<br />
-                <span className="text-foreground-subtle">understood.</span>
+                <span className="text-foreground/75 dark:text-foreground/70">understood.</span>
               </h1>
-              <p className="mt-7 max-w-[380px] text-[17px] leading-[1.55] text-foreground-subtle">
+              <p className="mt-7 max-w-[380px] text-[17px] leading-[1.55] font-normal text-foreground-muted">
                 A financial workspace to track, plan and understand your money.
               </p>
               <div className="mt-10">
@@ -112,14 +129,14 @@ export default function Onboarding() {
 
           {step === 1 && (
             <div className="stagger max-w-[520px]">
-              <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Step one</div>
-              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em]">
+              <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.24em] text-foreground-muted">Step one</div>
+              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em] text-foreground">
                 How will you<br />use Fyza?
               </h1>
-              <p className="mt-5 max-w-[400px] text-[15px] leading-[1.55] text-foreground-subtle">
+              <p className="mt-5 max-w-[400px] text-[15px] leading-[1.55] text-foreground-muted">
                 Choose one or combine several. You can switch between them anytime.
               </p>
-              <ul className="mt-8 border-t border-border">
+              <ul className="mt-8 border-t border-border-strong/50">
                 {PROFILES.map((p) => {
                   const on = sel.includes(p.id);
                   return (
@@ -127,13 +144,13 @@ export default function Onboarding() {
                       <button
                         onClick={() => toggle(p.id)}
                         aria-pressed={on}
-                        className="group flex w-full items-center gap-5 border-b border-border py-4 text-left transition-colors"
+                        className="group flex w-full items-center gap-5 border-b border-border-strong/50 py-4 text-left transition-colors"
                       >
-                        <span className={cn('font-display text-[20px] font-semibold tracking-[-0.03em] transition-colors', on ? 'text-foreground' : 'text-foreground-subtle group-hover:text-foreground')}>
+                        <span className={cn('font-display text-[20px] font-semibold tracking-[-0.03em] transition-colors', on ? 'text-foreground' : 'text-foreground-muted group-hover:text-foreground')}>
                           {p.title}
                         </span>
-                        <span className="hidden flex-1 text-[13px] text-foreground-subtle sm:block">{p.desc}</span>
-                        <span className={cn('ml-auto grid size-6 shrink-0 place-items-center rounded-full border transition-all duration-300', on ? 'border-foreground bg-foreground text-background' : 'border-border-strong text-transparent group-hover:border-foreground-subtle')}>
+                        <span className={cn('hidden flex-1 text-[13.5px] transition-colors sm:block', on ? 'text-foreground-muted' : 'text-foreground-muted/80 group-hover:text-foreground-muted')}>{p.desc}</span>
+                        <span className={cn('ml-auto grid size-6 shrink-0 place-items-center rounded-full border transition-all duration-300', on ? 'border-foreground bg-foreground text-background' : 'border-border-strong text-transparent group-hover:border-foreground-muted')}>
                           <Check className="size-3.5" strokeWidth={3} />
                         </span>
                       </button>
@@ -143,15 +160,15 @@ export default function Onboarding() {
               </ul>
               <div className="mt-9 flex items-center gap-6">
                 <PrimaryCTA disabled={sel.length === 0} onClick={() => setStep(2)}>Continue</PrimaryCTA>
-                <button onClick={() => setStep(0)} className="text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">Back</button>
+                <button onClick={() => setStep(0)} className="text-[14px] font-semibold text-foreground-muted transition-colors hover:text-foreground">Back</button>
               </div>
             </div>
           )}
 
           {step === 2 && (
             <div className="stagger max-w-[520px]">
-              <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Step two</div>
-              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em]">
+              <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.24em] text-foreground-muted">Step two</div>
+              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em] text-foreground">
                 What currency<br />do you use?
               </h1>
               <div className="mt-8">
@@ -159,7 +176,7 @@ export default function Onboarding() {
               </div>
               <div className="mt-9 flex items-center gap-6">
                 <PrimaryCTA onClick={() => setStep(3)}>Continue</PrimaryCTA>
-                <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">
+                <button onClick={() => setStep(1)} className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-foreground-muted transition-colors hover:text-foreground">
                   <ArrowLeft className="size-3.5" /> Back
                 </button>
               </div>
@@ -168,16 +185,16 @@ export default function Onboarding() {
 
           {step === 3 && (
             <div className="stagger max-w-[520px]">
-              <div className="mb-4 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Step three</div>
-              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em]">
+              <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.24em] text-foreground-muted">Step three</div>
+              <h1 className="font-display text-[clamp(36px,4.5vw,60px)] font-semibold leading-[1] tracking-[-0.045em] text-foreground">
                 What should we<br />call you?
               </h1>
-              <p className="mt-5 max-w-[400px] text-[15px] leading-[1.55] text-foreground-subtle">
+              <p className="mt-5 max-w-[400px] text-[15px] leading-[1.55] text-foreground-muted">
                 We'll shape a workspace around your selections.
               </p>
               <Input
                 autoFocus
-                className="mt-10 h-16 rounded-none border-0 border-b border-border-strong bg-transparent px-0 font-display text-[28px] font-medium tracking-[-0.03em] shadow-none focus-visible:border-foreground focus-visible:ring-0"
+                className="mt-10 h-16 rounded-none border-0 border-b border-border-strong bg-transparent px-0 font-display text-[28px] font-medium tracking-[-0.03em] text-foreground placeholder:text-foreground-muted/40 shadow-none focus-visible:border-foreground focus-visible:ring-0"
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -185,7 +202,7 @@ export default function Onboarding() {
               />
               <div className="mt-10 flex items-center gap-6">
                 <PrimaryCTA disabled={!name.trim()} onClick={complete}>Enter workspace</PrimaryCTA>
-                <button onClick={() => setStep(2)} className="inline-flex items-center gap-1.5 text-[14px] font-medium text-foreground-subtle transition-colors hover:text-foreground">
+                <button onClick={() => setStep(2)} className="inline-flex items-center gap-1.5 text-[14px] font-semibold text-foreground-muted transition-colors hover:text-foreground">
                   <ArrowLeft className="size-3.5" /> Back
                 </button>
               </div>
@@ -193,7 +210,7 @@ export default function Onboarding() {
           )}
         </div>
 
-        <footer className="text-[12px] leading-[1.5] text-foreground-subtle">
+        <footer className="text-[12.5px] leading-[1.5] font-medium text-foreground-muted">
           Your data stays on this device. Manual-first — no bank connection required.
         </footer>
       </section>

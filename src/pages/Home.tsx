@@ -271,47 +271,47 @@ function EmptyHome({ state, world, openAdd, openPalette, go }: { state: AppState
     <div className="flex flex-col gap-14 stagger max-md:gap-10">
       <section className="grid items-stretch gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-14">
         <div className="flex flex-col justify-center py-2 lg:py-8">
-          <div className="mb-6 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">Chapter one — Begin</div>
-          <h2 className="font-display text-[clamp(44px,5.6vw,80px)] font-semibold leading-[0.95] tracking-[-0.05em]">
-            Start with<br /><span className="text-foreground-subtle">what you know.</span>
+          <div className="mb-4 text-[11px] font-bold uppercase tracking-[0.24em] text-foreground-muted">Chapter one — Begin</div>
+          <h2 className="font-display text-[clamp(44px,5.6vw,80px)] font-semibold leading-[0.95] tracking-[-0.05em] text-foreground">
+            Start with<br /><span className="text-foreground/75 dark:text-foreground/70">what you know.</span>
           </h2>
-          <p className="mt-7 max-w-[420px] text-[16px] leading-[1.6] text-foreground-muted">Add income, spending, savings, or anything else manually. Fyza will build your financial picture as you go.</p>
+          <p className="mt-6 max-w-[420px] text-[16px] leading-[1.65] font-normal text-foreground-muted">Add income, spending, savings, or anything else manually. Fyza will build your financial picture as you go.</p>
           <div className="mt-10 flex flex-wrap items-center gap-3">
-            <button onClick={() => openAdd('income')} className="group inline-flex h-13 items-center gap-3 rounded-full bg-foreground py-3 pl-6 pr-2 text-[15px] font-medium text-background transition-all duration-300 hover:gap-4 active:scale-[0.98]">
+            <button onClick={() => openAdd('income')} className="group inline-flex h-13 items-center gap-3 rounded-full bg-foreground py-3 pl-6 pr-2 text-[15px] font-semibold text-background shadow-card transition-all duration-300 hover:gap-4 active:scale-[0.98]">
               Add income
               <span className="grid size-8 place-items-center rounded-full bg-background/15"><ArrowRight className="size-4" /></span>
             </button>
-            <button onClick={() => openAdd('expense')} className="inline-flex h-13 items-center gap-2 rounded-full border border-border-strong px-6 py-3 text-[15px] font-medium transition-colors hover:border-foreground">
+            <button onClick={() => openAdd('expense')} className="inline-flex h-13 items-center gap-2 rounded-full border border-border-strong bg-surface/75 backdrop-blur-md px-6 py-3 text-[15px] font-semibold text-foreground shadow-sm transition-all hover:bg-surface hover:border-foreground active:scale-[0.98]">
               <Plus className="size-4" />Add expense
             </button>
           </div>
-          <div className="mt-6 flex flex-wrap items-center gap-6 text-[13.5px] text-foreground-subtle">
+          <div className="mt-6 flex flex-wrap items-center gap-6 text-[13.5px] font-medium text-foreground-muted">
             <button onClick={openPalette} className="inline-flex items-center gap-2 transition-colors hover:text-foreground"><AIMark className="size-3.5" />Ask Fyza</button>
             {hasCapability(state, 'accounts') && (
-              <button onClick={() => openAdd('account')} className="transition-colors hover:text-foreground">Add an account <span className="opacity-60">(optional)</span></button>
+              <button onClick={() => openAdd('account')} className="transition-colors hover:text-foreground">Add an account <span className="opacity-75">(optional)</span></button>
             )}
           </div>
         </div>
-        <div aria-hidden className="relative h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] sm:h-[340px] lg:h-auto lg:min-h-[460px]">
+        <div aria-hidden className="relative h-[260px] overflow-hidden rounded-[28px] bg-[#0d1422] shadow-pop sm:h-[340px] lg:h-auto lg:min-h-[460px]">
           <img src={welcomeImg} alt="" className="absolute inset-0 size-full animate-[welcomeZoom_24s_ease-out_forwards] object-cover object-[50%_45%]" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           <div className="absolute inset-x-6 bottom-6 text-white">
-            <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-white/60">Manual-first</div>
-            <p className="max-w-[300px] font-display text-[19px] font-medium leading-[1.3] tracking-[-0.02em]">No bank connection required. Just the truth, as you know it.</p>
+            <div className="mb-2 text-[11px] font-bold uppercase tracking-[0.22em] text-white/70">Manual-first</div>
+            <p className="max-w-[320px] font-display text-[19px] font-medium leading-[1.3] tracking-[-0.02em]">No bank connection required. Just the truth, as you know it.</p>
           </div>
         </div>
       </section>
 
       <section>
-        <div className="mb-2 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle">What comes next</div>
-        <ol className="border-t border-border">
+        <div className="mb-3 text-[11px] font-bold uppercase tracking-[0.24em] text-foreground-muted">What comes next</div>
+        <ol className="border-t border-border-strong/40">
           {sections.map((s, i) => (
             <li key={s.title}>
-              <button onClick={s.on} className="group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-border py-6 text-left md:grid-cols-[64px_220px_minmax(0,1fr)_auto]">
-                <span className="num text-[13px] text-foreground-subtle">0{i + 1}</span>
-                <span className="font-display text-[22px] font-semibold tracking-[-0.03em] transition-colors group-hover:text-foreground max-md:text-[19px]">{s.title}</span>
-                <span className="hidden text-[14px] text-foreground-subtle md:block">{s.d}</span>
-                <span className="inline-flex items-center gap-2 text-[13.5px] font-medium text-foreground-muted transition-all group-hover:gap-3 group-hover:text-foreground">
+              <button onClick={s.on} className="group grid w-full grid-cols-[48px_minmax(0,1fr)_auto] items-center gap-4 border-b border-border-strong/40 py-6 text-left md:grid-cols-[64px_220px_minmax(0,1fr)_auto] transition-colors">
+                <span className="num text-[13px] font-semibold text-foreground-muted">0{i + 1}</span>
+                <span className="font-display text-[22px] font-semibold tracking-[-0.03em] text-foreground transition-colors group-hover:text-accent-foreground max-md:text-[19px]">{s.title}</span>
+                <span className="hidden text-[14px] text-foreground-muted md:block">{s.d}</span>
+                <span className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-foreground transition-all group-hover:gap-3">
                   <span className="max-sm:hidden">{s.cta}</span><ArrowRight className="size-4" />
                 </span>
               </button>
@@ -488,9 +488,9 @@ export default function HomePage({ go, openAdd, openPalette, openItem }: { go: (
   return (
     <div className="animate-fade-in">
       <header className="mb-8 max-md:mb-6">
-        <div className="mb-2 text-meta text-foreground-muted">{new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(today())}</div>
-        <h1 className="font-display text-[32px] tracking-tight font-semibold max-md:text-[26px] max-md:leading-8">Good {hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}{first}</h1>
-        <div className="mt-1 text-[14px] text-foreground-muted">Here's your financial overview for today.</div>
+        <div className="mb-2 text-meta font-semibold text-foreground-muted">{new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).format(today())}</div>
+        <h1 className="font-display text-[32px] tracking-tight font-semibold max-md:text-[26px] max-md:leading-8 text-foreground">Good {hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening'}{first}</h1>
+        <div className="mt-1 text-[14.5px] font-normal text-foreground-muted">Here's your financial overview for today.</div>
       </header>
 
       {isEmpty ? <EmptyHome state={state} world={world} openAdd={openAdd} openPalette={openPalette} go={go} /> : (

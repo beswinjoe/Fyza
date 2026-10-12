@@ -147,14 +147,44 @@ export function serializeState(envelope: PersistedEnvelope): string {
   return JSON.stringify(snap);
 }
 
-export function loadState(): PersistedEnvelope {
+export function getStorageKey(uid?: string | null): string {
+  return uid ? `${STORAGE_KEY}.${uid}` : STORAGE_KEY;
+}
+
+export function loadState(uid?: string | null): PersistedEnvelope {
   try {
-    let raw = localStorage.getItem(STORAGE_KEY);
+    const key = getStorageKey(uid);
+    let raw = typeof localStorage !== 'undefined' ? localStorage.getItem(key) : null;
+
+    // If a user is signing in for the first time and doesn't have a user-scoped key yet:
+    if (!raw && uid) {
+      // Check if there is existing local data in unassigned STORAGE_KEY or LEGACY_KEY
+      let unassignedRaw = localStorage.getItem(STORAGE_KEY);
+      if (!unassignedRaw) {
+        unassignedRaw = localStorage.getItem(LEGACY_KEY);
+      }
+      if (unassignedRaw) {
+        const migrated = deserializeState(unassignedRaw);
+        // Only migrate if there is actually onboarded or recorded financial data
+        if (migrated.data.onboarded || migrated.data.transactions.length > 0 || migrated.data.accounts.length > 0) {
+          saveState(migrated, uid);
+          // Archive the unassigned data under a migration key to avoid leaking to another user on shared device
+          try {
+            localStorage.setItem(`${STORAGE_KEY}.migrated_to_${uid}`, unassignedRaw);
+            localStorage.removeItem(STORAGE_KEY);
+          } catch {}
+          return migrated;
+        }
+      }
+      // If no pre-existing unassigned data, start a fresh envelope for the new user
+      return createEmptyEnvelope();
+    }
+
     if (!raw) {
-      raw = localStorage.getItem(LEGACY_KEY);
+      raw = typeof localStorage !== 'undefined' ? localStorage.getItem(LEGACY_KEY) : null;
       if (raw) {
         const migrated = deserializeState(raw);
-        saveState(migrated);
+        saveState(migrated, uid);
         return migrated;
       }
     }
@@ -165,11 +195,12 @@ export function loadState(): PersistedEnvelope {
   }
 }
 
-export function saveState(envelope: PersistedEnvelope): { success: boolean; error?: string } {
+export function saveState(envelope: PersistedEnvelope, uid?: string | null): { success: boolean; error?: string } {
   try {
     const raw = serializeState(envelope);
+    const key = getStorageKey(uid);
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(STORAGE_KEY, raw);
+      localStorage.setItem(key, raw);
     }
     return { success: true };
   } catch (e: any) {

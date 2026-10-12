@@ -14,11 +14,11 @@
   --surface: #ffffff;
   --surface-muted: #f3f3f1;
   --surface-elevated: #ffffff;
-  --foreground: #111113;
-  --foreground-muted: #5c5c66;
-  --foreground-subtle: #95959d;
-  --border: rgb(15 15 25 / 0.075);
-  --border-strong: rgb(15 15 25 / 0.14);
+  --foreground: #090d16;
+  --foreground-muted: #334155;
+  --foreground-subtle: #475569;
+  --border: rgb(15 23 42 / 0.08);
+  --border-strong: rgb(15 23 42 / 0.16);
   --accent: #4d7a0a;
   --accent-soft: rgb(77 122 10 / 0.08);
   --accent-foreground: #ffffff;
@@ -210,6 +210,9 @@
   --atm-top: #5a9ee6;
   --atm-mid: #a4caf4;
   --atm-bottom: #e2ecf7;
+  --foreground: #090d16;
+  --foreground-muted: #1e293b;
+  --foreground-subtle: #334155;
   position: relative;
   isolation: isolate;
   background-color: var(--atm-top);
@@ -223,6 +226,9 @@
   --atm-top: #0b1020;
   --atm-mid: #0f162c;
   --atm-bottom: #141c38;
+  --foreground: #eef1f7;
+  --foreground-muted: #a9b1c4;
+  --foreground-subtle: #78819a;
 }
 .onb-atmos::before {
   content: "";
@@ -257,16 +263,22 @@
 
 /* ---------- Liquid glass surfaces (app shell only) ---------- */
 .onb-atmos-app {
-  --surface: rgb(255 255 255 / 0.78);
-  --surface-muted: rgb(255 255 255 / 0.55);
-  --border: rgb(255 255 255 / 0.45);
-  --border-strong: rgb(255 255 255 / 0.70);
+  --surface: rgb(255 255 255 / 0.85);
+  --surface-muted: rgb(255 255 255 / 0.62);
+  --border: rgb(255 255 255 / 0.50);
+  --border-strong: rgb(255 255 255 / 0.75);
+  --foreground: #090d16;
+  --foreground-muted: #1e293b;
+  --foreground-subtle: #334155;
 }
 [data-theme="dark"] .onb-atmos-app {
   --surface: rgb(0 0 0 / 0.35);
   --surface-muted: rgb(0 0 0 / 0.5);
   --border: rgb(255 255 255 / 0.08);
   --border-strong: rgb(255 255 255 / 0.15);
+  --foreground: #eef1f7;
+  --foreground-muted: #a9b1c4;
+  --foreground-subtle: #78819a;
 }
 .onb-atmos-app .liquid {
   position: relative;

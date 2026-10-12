@@ -6,6 +6,8 @@ import { CurrencyPicker } from './CurrencyPicker';
 import { Button, Drawer, Input, cn } from './ui';
 import { getStoredPreference, setTheme, type ThemePreference } from '../engine/theme';
 import { exportState, importState, listCorruptedBackups, clearCorruptedBackup, CURRENT_VERSION } from '../engine/persistence';
+import { useAuth } from '../engine/auth';
+import { useRouter } from '../engine/router';
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <div className="mb-2 mt-8 text-[11px] font-medium uppercase tracking-[0.22em] text-foreground-subtle first:mt-2">{children}</div>
@@ -19,6 +21,8 @@ const THEME_OPTIONS: { value: ThemePreference; label: string; icon: React.Elemen
 
 export default function Settings({ onClose }: { onClose: () => void }) {
   const { state, dispatch } = useStore();
+  const { user, signOut } = useAuth();
+  const { navigate } = useRouter();
   const [name, setName] = useState(state.user.name);
   const [picking, setPicking] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
@@ -225,17 +229,23 @@ export default function Settings({ onClose }: { onClose: () => void }) {
 
       <button onClick={reset} className="mt-4 text-[13px] font-medium text-negative/90 hover:text-negative">Reset workspace</button>
 
-      <Label>Sign Out</Label>
-      <button onClick={() => {
-        if (window.confirm("Sign out? Your data is currently stored locally and may not be accessible until you implement a backend.")) {
-          dispatch({ type: 'set', patch: { onboarded: false } });
-          onClose();
-        }
-      }} className="w-full group flex items-center gap-4 border-y border-border py-4 text-left transition-colors hover:bg-surface-muted/30">
+      <Label>Account</Label>
+      <button
+        onClick={async () => {
+          if (window.confirm("Sign out of your Fyza workspace? Your data remains safely stored on this device.")) {
+            await signOut();
+            onClose();
+            navigate('/');
+          }
+        }}
+        className="w-full group flex items-center gap-4 border-y border-border py-4 text-left transition-colors hover:bg-surface-muted/30"
+      >
         <LogOut className="size-5 text-foreground-subtle shrink-0 group-hover:text-foreground transition-colors" />
         <div>
           <div className="text-[15px] font-medium text-foreground">Sign out</div>
-          <div className="text-[13px] text-foreground-subtle group-hover:text-foreground-muted transition-colors">Sign out of your Fyza workspace</div>
+          <div className="text-[13px] text-foreground-subtle group-hover:text-foreground-muted transition-colors">
+            {user?.email ? `Signed in as ${user.email}` : 'Sign out of your Fyza workspace'}
+          </div>
         </div>
       </button>
     </Drawer>

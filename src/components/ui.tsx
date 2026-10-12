@@ -76,11 +76,11 @@ export const toneText: Record<Tone, string> = { positive: 'text-positive', negat
    Typography primitives
 ================================================================ */
 export const Eyebrow = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <div className={cn('text-eyebrow font-medium uppercase text-foreground-subtle', className)}>{children}</div>
+  <div className={cn('text-eyebrow font-semibold uppercase tracking-wider text-foreground-muted', className)}>{children}</div>
 );
 
 export const Kbd = ({ children, className }: { children: ReactNode; className?: string }) => (
-  <kbd className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-border bg-surface-muted px-1.5 font-sans text-[10.5px] font-medium text-foreground-subtle', className)}>{children}</kbd>
+  <kbd className={cn('inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-border bg-surface-muted px-1.5 font-sans text-[10.5px] font-semibold text-foreground-muted shadow-sm', className)}>{children}</kbd>
 );
 
 export function Badge({ children, tone = 'neutral', className }: { children: ReactNode; tone?: Tone | string; className?: string }) {

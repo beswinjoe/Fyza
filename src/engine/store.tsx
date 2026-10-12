@@ -73,7 +73,7 @@ export function reducer(state: AppState, a: Action): AppState {
   }
 }
 
-export function StoreProvider({ children }: { children: ReactNode }) {
+export function StoreProvider({ children, uid }: { children: ReactNode; uid?: string | null }) {
   // Store the full envelope, but only expose the data to the rest of the app.
   const [envelope, setEnvelope] = useReducer(
     (env: PersistedEnvelope, a: Action) => {
@@ -81,8 +81,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
        if (nextData === env.data) return env;
        return { ...env, data: nextData };
     },
-    undefined,
-    loadState
+    uid,
+    (userUid) => loadState(userUid)
   );
 
   const state = envelope.data;
@@ -91,8 +91,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   setActiveCurrency(state.currency);
   
   useEffect(() => { 
-    saveState(envelope); 
-  }, [envelope]);
+    saveState(envelope, uid); 
+  }, [envelope, uid]);
   
   // Wrap dispatch to go through the envelope reducer
   return <Ctx.Provider value={{ state, dispatch: setEnvelope }}>{children}</Ctx.Provider>;

@@ -48,24 +48,43 @@ The application will be available at `http://localhost:5173`.
 
 ---
 
-## Environment Variables
+## Environment Variables & Firebase Authentication
 
 Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
 
-| Variable | Description | Default |
+| Variable | Description | Required |
 |---|---|---|
-| `VITE_GROQ_API_KEY` | Optional API key for Groq external LLM fallback | None (Uses deterministic local parser) |
+| `VITE_FIREBASE_API_KEY` | Firebase Web API Key | Yes (for Google Sign-In) |
+| `VITE_FIREBASE_AUTH_DOMAIN` | Firebase Auth Domain (`<project-id>.firebaseapp.com`) | Yes (for Google Sign-In) |
+| `VITE_FIREBASE_PROJECT_ID` | Firebase Project ID | Yes (for Google Sign-In) |
+| `VITE_FIREBASE_STORAGE_BUCKET` | Firebase Storage Bucket | Optional |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase Messaging Sender ID | Optional |
+| `VITE_FIREBASE_APP_ID` | Firebase App ID | Yes (for Google Sign-In) |
+| `VITE_GROQ_API_KEY` | API key for Groq external LLM fallback | Optional |
 
-> **Note**: Missing or unset API keys **never** break application functionality. Fyza defaults to an instantaneous local rule-based financial parser that runs entirely on-device without internet access.
+### Setting Up Firebase Authentication (Google Sign-In)
+
+1. **Create a Firebase Project**:
+   - Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+2. **Enable Google Authentication**:
+   - Navigate to **Build** → **Authentication** → **Sign-in method**.
+   - Click **Add new provider** → select **Google** → enable it and configure your support email.
+3. **Register a Web App**:
+   - In Project Settings (gear icon) → **General**, scroll down to **Your apps** and click the Web icon (`</>`).
+   - Register the app and copy the `firebaseConfig` keys into your `.env` file using the `VITE_FIREBASE_*` names listed above.
+4. **Configure Authorized Domains**:
+   - In **Authentication** → **Settings** → **Authorized domains**, ensure `localhost` (and your production domain) is listed.
+
+> **Privacy & Local Storage Model**: Authentication verifies user identity so that multiple users on a shared machine each receive isolated, private local workspaces (`fyza.v3.<uid>`). Financial records, transactions, and budgets remain local to the device browser—never synced to an external database without your permission.
 
 ---
 
 ## Testing & Quality Assurance
 
-Fyza includes a comprehensive suite of 10 test modules running via a unified test runner:
+Fyza includes a comprehensive suite of 11 test modules running via a unified test runner:
 
 ```bash
 # Run all test suites
@@ -90,7 +109,8 @@ npm run build
 6. **Atmosphere & Themes** (`test_atmosphere.ts`): Morning/Night gradient transitions and timezone handling.
 7. **End-to-End Integration** (`test_integration.ts`): Full workflows across manual and AI entry points.
 8. **Audit Hardening & Ledger** (`test_audit_hardening.ts`): Linked debit deductions, credit card debt separation, non-destructive snapshot undo.
-9. **General Regressions** (`test_regression.ts`): Bug fix verification across the application lifecycle.
+9. **Google Auth, Routing & Data Isolation** (`test_auth.ts`): Firebase auth state handling, error parsing, user-scoped storage isolation, and pre-existing data migration.
+10. **General Regressions** (`test_regression.ts`): Bug fix verification across the application lifecycle.
 
 ---
 
